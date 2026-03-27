@@ -130,8 +130,22 @@
               action="{{ url_for('soundboard.share') }}"
               class="sb-inline-form hidden" id="shareform-{{ sound.id }}">
           <input type="hidden" name="item_id" value="{{ sound.id }}">
-          <input type="text" name="target_username" placeholder="Enter username"
-                 maxlength="80" required class="sb-inline-input">
+          <div style="margin-bottom: 0.5rem;">
+            {% if friends %}
+            <div style="margin-bottom: 0.5rem;">
+              <small style="color: #666;">Select Friends:</small>
+              {% for friend in friends %}
+              <label style="display: block; margin: 0.25rem 0; font-size: 0.9rem;">
+                <input type="checkbox" name="friend_id" value="{{ friend.id }}">
+                {{ friend.username }}
+              </label>
+              {% endfor %}
+            </div>
+            <small style="color: #999; display: block; margin-bottom: 0.5rem;">OR</small>
+            {% endif %}
+            <input type="text" name="target_username" placeholder="Enter username"
+                   maxlength="80" class="sb-inline-input">
+          </div>
           <button type="submit" class="btn btn-sm">Send</button>
           <button type="button" class="btn btn-sm btn-secondary"
                   onclick="toggleShare({{ sound.id }})">Cancel</button>
@@ -154,6 +168,30 @@ let mediaRecorder = null;
 let audioChunks   = [];
 let timerInterval = null;
 let elapsed       = 0;
+let recordingMimeType = '';
+
+// Pick the best audio MIME type the browser actually supports.
+// iOS Safari only supports audio/mp4; Chrome/Firefox prefer audio/webm.
+function getBestMimeType() {
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+  ];
+  if (typeof MediaRecorder === 'undefined') return '';
+  for (const t of candidates) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function mimeToExt(mime) {
+  if (mime.startsWith('audio/mp4'))  return 'mp4';
+  if (mime.startsWith('audio/ogg'))  return 'ogg';
+  return 'webm'; // default / audio/webm
+}
 
 const recordBtn    = document.getElementById('recordBtn');
 const stopBtn      = document.getElementById('stopBtn');
@@ -161,38 +199,31 @@ const timerEl      = document.getElementById('recordTimer');
 const dotEl        = document.getElementById('recordDot');
 const previewAudio = document.getElementById('previewAudio');
 const saveForm     = document.getElementById('saveRecordingForm');
-const blobInput    = document.getElementById('audioBlobInput');
 
 recordBtn.addEventListener('click', async () => {
+  if (typeof MediaRecorder === 'undefined') {
+    alert('Your browser does not support audio recording. Please use the Upload option instead.');
+    return;
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks  = [];
-    mediaRecorder = new MediaRecorder(stream);
+    recordingMimeType = getBestMimeType();
+
+    const options = recordingMimeType ? { mimeType: recordingMimeType } : {};
+    mediaRecorder = new MediaRecorder(stream, options);
+    // Use the actual mimeType the recorder chose (browser may override)
+    recordingMimeType = mediaRecorder.mimeType || recordingMimeType;
 
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
 
     mediaRecorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const blob = new Blob(audioChunks, { type: recordingMimeType || 'audio/webm' });
       previewAudio.src = URL.createObjectURL(blob);
       previewAudio.classList.remove('hidden');
-
-      // Store blob in a hidden file input via a DataTransfer trick
-      const file = new File([blob], 'recording.webm', { type: 'audio/webm' });
-      const dt   = new DataTransfer();
-      dt.items.add(file);
-      // Replace the hidden text input with a file input carrying the blob
-      const realInput = document.createElement('input');
-      realInput.type  = 'file';
-      realInput.name  = 'audio_blob';
-      realInput.style.display = 'none';
-      realInput.files_ = dt.files; // won't work natively — use FormData instead
-      // We'll override form submit to use FormData
       saveForm.classList.remove('hidden');
-
-      // Stash blob for submit handler
       saveForm._blob = blob;
-
       clearInterval(timerInterval);
       dotEl.classList.add('hidden');
     };
@@ -233,12 +264,12 @@ saveForm.addEventListener('submit', async (e) => {
   if (!name) { alert('Please enter a name.'); return; }
   if (!saveForm._blob) { alert('No recording to save.'); return; }
 
+  const ext = mimeToExt(recordingMimeType);
   const fd = new FormData();
-  fd.append('audio_blob', saveForm._blob, 'recording.webm');
+  fd.append('audio_blob', saveForm._blob, `recording.${ext}`);
   fd.append('name', name);
 
   const resp = await fetch(saveForm.action, { method: 'POST', body: fd });
-  // The server redirects; follow it
   window.location.href = resp.url;
 });
 

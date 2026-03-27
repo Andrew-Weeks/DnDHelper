@@ -7,11 +7,11 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from models import db, SoundboardItem, ShareRequest, User
+from models import db, SoundboardItem, ShareRequest, User, Friendship
 
 soundboard_bp = Blueprint('soundboard', __name__, url_prefix='/soundboard')
 
-ALLOWED_EXTENSIONS = {'mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac'}
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac', 'mp4'}
 
 
 def _user_upload_dir(user_id):
@@ -49,9 +49,27 @@ def index():
                         .filter_by(to_user_id=current_user.id, status='pending')
                         .order_by(ShareRequest.created_at.desc())
                         .all())
+    
+    # Get user's friends (both directions)
+    sent_friendships = Friendship.query.filter_by(
+        user_id=current_user.id, 
+        status='accepted'
+    ).all()
+    received_friendships = Friendship.query.filter_by(
+        friend_id=current_user.id,
+        status='accepted'
+    ).all()
+    
+    friends = []
+    for f in sent_friendships:
+        friends.append(f.friend)
+    for f in received_friendships:
+        friends.append(f.user)
+    
     return render_template('soundboard/index.html',
                            sounds=sounds,
-                           pending_requests=pending_requests)
+                           pending_requests=pending_requests,
+                           friends=friends)
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +131,12 @@ def save_recording():
         flash('Please give the recording a name.', 'error')
         return redirect(url_for('soundboard.index'))
 
-    unique_name = f'{uuid.uuid4().hex}.webm'
+    # Detect file extension from the uploaded filename (iOS sends .mp4, others .webm)
+    uploaded_name = audio_blob.filename or 'recording.webm'
+    ext = uploaded_name.rsplit('.', 1)[-1].lower()
+    if ext not in {'webm', 'mp4', 'm4a', 'ogg', 'wav', 'aac'}:
+        ext = 'webm'
+    unique_name = f'{uuid.uuid4().hex}.{ext}'
     dest_dir = _user_upload_dir(current_user.id)
     audio_blob.save(os.path.join(dest_dir, unique_name))
 
@@ -203,38 +226,75 @@ def rename(item_id):
 @login_required
 def share():
     item_id = request.form.get('item_id', type=int)
+
+    # Get friend IDs (from checkboxes) or a manually typed username
+    friend_id_list = request.form.getlist('friend_id')
     target_username = request.form.get('target_username', '').strip()
 
-    if not item_id or not target_username:
-        flash('Missing sound or target username.', 'error')
+    if not item_id:
+        flash('Missing sound ID.', 'error')
         return redirect(url_for('soundboard.index'))
 
     item = _own_item(item_id)
-    target = User.query.filter_by(username=target_username).first()
-    if not target:
-        flash(f'No user found with username "{target_username}".', 'error')
-        return redirect(url_for('soundboard.index'))
-    if target.id == current_user.id:
-        flash("You can't share a sound with yourself.", 'error')
+    targets = []
+
+    # Handle friend checkboxes
+    if friend_id_list:
+        for fid in friend_id_list:
+            if not fid.isdigit():
+                continue
+            target = db.session.get(User, int(fid))
+            if target and target.id != current_user.id:
+                targets.append(target)
+        if not targets:
+            flash('No valid friends selected.', 'error')
+            return redirect(url_for('soundboard.index'))
+    # Handle typed username
+    elif target_username:
+        target = User.query.filter_by(username=target_username).first()
+        if not target:
+            flash(f'No user found with username "{target_username}".', 'error')
+            return redirect(url_for('soundboard.index'))
+        if target.id == current_user.id:
+            flash("You can't share a sound with yourself.", 'error')
+            return redirect(url_for('soundboard.index'))
+        targets = [target]
+    else:
+        flash('Select friends or enter a username.', 'error')
         return redirect(url_for('soundboard.index'))
 
-    # Don't create a duplicate pending request
-    existing = ShareRequest.query.filter_by(
-        from_user_id=current_user.id,
-        to_user_id=target.id,
-        soundboard_item_id=item.id,
-        status='pending'
-    ).first()
-    if existing:
-        flash(f'You already sent "{item.name}" to {target.username}.', 'error')
+    if not targets:
+        flash('No valid targets to share with.', 'error')
         return redirect(url_for('soundboard.index'))
 
-    req = ShareRequest(from_user_id=current_user.id,
-                       to_user_id=target.id,
-                       soundboard_item_id=item.id)
-    db.session.add(req)
-    db.session.commit()
-    flash(f'Share request sent to {target.username}.', 'success')
+    # Create share requests for each target
+    shared_count = 0
+    for target in targets:
+        # Don't create a duplicate pending request
+        existing = ShareRequest.query.filter_by(
+            from_user_id=current_user.id,
+            to_user_id=target.id,
+            soundboard_item_id=item.id,
+            status='pending'
+        ).first()
+        if existing:
+            continue
+        
+        req = ShareRequest(from_user_id=current_user.id,
+                           to_user_id=target.id,
+                           soundboard_item_id=item.id)
+        db.session.add(req)
+        shared_count += 1
+    
+    if shared_count > 0:
+        db.session.commit()
+        if shared_count == 1:
+            flash(f'Share request sent to {targets[0].username}.', 'success')
+        else:
+            flash(f'Share request sent to {shared_count} friends.', 'success')
+    else:
+        flash('No new share requests created (may already be sent).', 'info')
+    
     return redirect(url_for('soundboard.index'))
 
 

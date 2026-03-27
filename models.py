@@ -47,6 +47,23 @@ class ShareRequest(db.Model):
     soundboard_item = db.relationship('SoundboardItem', backref=db.backref('share_requests', lazy=True))
 
 
+class Friendship(db.Model):
+    __tablename__ = 'friendship'
+    __table_args__ = (db.UniqueConstraint('user_id', 'friend_id'),)
+
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    friend_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status      = db.Column(db.String(20), nullable=False, default='pending')
+    # status values: 'pending', 'accepted'
+    created_at  = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    # user who initiated the request
+    user    = db.relationship('User', foreign_keys=[user_id], backref=db.backref('friend_requests_sent', lazy=True))
+    # user receiving the request
+    friend  = db.relationship('User', foreign_keys=[friend_id], backref=db.backref('friend_requests_received', lazy=True))
+
+
 # ---------------------------------------------------------------------------
 # Campaign system
 # ---------------------------------------------------------------------------

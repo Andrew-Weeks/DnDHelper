@@ -42,11 +42,13 @@ from auth import auth_bp
 from main import main_bp
 from soundboard import soundboard_bp
 from campaign import campaign_bp
+from friends import friends_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(soundboard_bp)
 app.register_blueprint(campaign_bp)
+app.register_blueprint(friends_bp)
 
 with app.app_context():
     db.create_all()
