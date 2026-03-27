@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Record Session — {{ campaign.name }} — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px; margin:0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+        <h1 style="margin:0;">Record Session</h1>
+        <a href="{{ url_for('campaign.campaign_view', campaign_id=campaign.id) }}" class="btn btn-secondary">&larr; {{ campaign.name }}</a>
+    </div>
+
+    <div class="record-controls">
+        <button id="recordBtn" class="btn" type="button">&#9679; Record</button>
+        <button id="stopBtn"   class="btn btn-secondary" type="button" disabled>&#9632; Stop</button>
+        <span id="recordTimer" class="record-timer hidden">0:00</span>
+        <span id="recordDot"   class="record-dot hidden"></span>
+    </div>
+
+    <audio id="previewAudio" controls class="audio-preview hidden" style="margin-top:0.75rem;"></audio>
+
+    <form id="saveSessionForm" method="POST"
+          action="{{ url_for('campaign.session_new', campaign_id=campaign.id) }}"
+          enctype="multipart/form-data" class="hidden" style="margin-top:1rem;">
+        <div class="form-group">
+            <label for="sessionTitle">Session Title</label>
+            <input type="text" id="sessionTitle" name="title"
+                   placeholder="e.g. Session 5 — Into the Dungeon" maxlength="200" required>
+        </div>
+        <button type="submit" class="btn" style="margin-top:0.5rem;">Save &amp; Upload Session</button>
+    </form>
+
+    <p style="margin-top:1.5rem; opacity:0.6; font-size:0.85rem;">
+        Recording is stored on the server and processed locally using Whisper + pyannote. No audio is sent to external services.
+    </p>
+</div>
+
+<script>
+let mediaRecorder = null;
+let audioChunks   = [];
+let timerInterval = null;
+let elapsed       = 0;
+
+const recordBtn    = document.getElementById('recordBtn');
+const stopBtn      = document.getElementById('stopBtn');
+const timerEl      = document.getElementById('recordTimer');
+const dotEl        = document.getElementById('recordDot');
+const previewAudio = document.getElementById('previewAudio');
+const saveForm     = document.getElementById('saveSessionForm');
+
+recordBtn.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks  = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            previewAudio.src = URL.createObjectURL(blob);
+            previewAudio.classList.remove('hidden');
+            saveForm.classList.remove('hidden');
+            saveForm._blob = blob;
+            clearInterval(timerInterval);
+            dotEl.classList.add('hidden');
+        };
+
+        mediaRecorder.start();
+        elapsed = 0;
+        timerEl.textContent = '0:00';
+        timerEl.classList.remove('hidden');
+        dotEl.classList.remove('hidden');
+        timerInterval = setInterval(() => {
+            elapsed++;
+            const m = Math.floor(elapsed / 60);
+            const s = String(elapsed % 60).padStart(2, '0');
+            timerEl.textContent = `${m}:${s}`;
+        }, 1000);
+
+        recordBtn.disabled = true;
+        stopBtn.disabled   = false;
+        saveForm.classList.add('hidden');
+        previewAudio.classList.add('hidden');
+    } catch (err) {
+        alert('Microphone access denied or unavailable.');
+    }
+});
+
+stopBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    recordBtn.disabled = false;
+    stopBtn.disabled   = true;
+});
+
+saveForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('sessionTitle').value.trim();
+    if (!title)          { alert('Please enter a session title.'); return; }
+    if (!saveForm._blob) { alert('No recording to save.'); return; }
+
+    const submitBtn = saveForm.querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading…';
+
+    const fd = new FormData();
+    fd.append('audio_blob', saveForm._blob, 'session.webm');
+    fd.append('title', title);
+
+    const resp = await fetch(saveForm.action, { method: 'POST', body: fd });
+    window.location.href = resp.url;
+});
+</script>
+{% endblock %}

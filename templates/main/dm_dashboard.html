@@ -5,6 +5,9 @@
 <div class="card">
     <h1>Dungeon Master Panel</h1>
     <p>Welcome, Dungeon Master <strong>{{ current_user.username }}</strong>.</p>
-    <p><em>DM features coming soon — campaign management, NPC tracker, session notes...</em></p>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
+        <a href="{{ url_for('campaign.campaign_list') }}" class="btn">View Campaigns</a>
+        <a href="{{ url_for('campaign.campaign_create') }}" class="btn btn-secondary">+ New Campaign</a>
+    </div>
 </div>
 {% endblock %}

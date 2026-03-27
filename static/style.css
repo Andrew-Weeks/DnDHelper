@@ -404,3 +404,166 @@ input[type="file"] {
     background: #5c2a00;
     color: #e0a040;
 }
+
+/* =====================================================================
+   Campaign & Session styles
+   ===================================================================== */
+
+.campaign-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.campaign-card {
+    display: block;
+    background: #0f3460;
+    border: 1px solid #8b4513;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    color: #e0d7c6;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.campaign-card:hover {
+    background: #16407a;
+    border-color: #d4a017;
+}
+
+.campaign-card-name {
+    font-size: 1.05rem;
+    font-weight: bold;
+    color: #d4a017;
+    margin-bottom: 0.3rem;
+}
+
+.campaign-card-meta {
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+/* Member list */
+.member-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #2a2a4a;
+}
+
+.member-item:last-child {
+    border-bottom: none;
+}
+
+/* Session rows */
+.session-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    background: #0f3460;
+    border: 1px solid #2a3a5a;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #e0d7c6;
+    margin-bottom: 0.5rem;
+    transition: border-color 0.15s;
+}
+
+.session-row:hover {
+    border-color: #d4a017;
+}
+
+.session-title {
+    font-weight: bold;
+    flex: 1;
+}
+
+.session-meta {
+    opacity: 0.6;
+    font-size: 0.85rem;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.status-uploaded   { background: #1a3a5c; color: #7ab3e0; }
+.status-processing { background: #3a3000; color: #d4a017; }
+.status-completed  { background: #1a4a2e; color: #7dd9a0; }
+.status-failed     { background: #4a1a1a; color: #d97d7d; }
+
+/* Transcript log */
+.transcript-log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.transcript-line {
+    background: #0f3460;
+    border-left: 3px solid #8b4513;
+    border-radius: 0 4px 4px 0;
+    padding: 0.6rem 0.85rem;
+}
+
+.transcript-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.transcript-speaker {
+    font-weight: bold;
+    color: #d4a017;
+    font-size: 0.9rem;
+}
+
+.transcript-timestamp {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.transcript-text {
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Campaign view layout */
+.campaign-view,
+.session-view {
+    display: flex;
+    flex-direction: column;
+}
+
+.card h2 {
+    color: #d4a017;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.card h3 {
+    color: #c8b89a;
+    font-size: 1rem;
+}
