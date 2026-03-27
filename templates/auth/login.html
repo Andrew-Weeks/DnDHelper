@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Login — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Login</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group form-check">
+            <input type="checkbox" id="remember_me" name="remember_me">
+            <label for="remember_me">Remember me</label>
+        </div>
+        <button type="submit" class="btn">Login</button>
+    </form>
+    <p class="form-footer">Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Dashboard</h1>
+    <p>Welcome back, <strong>{{ current_user.username }}</strong>!</p>
+    <p>You are logged in as a <span class="role-badge role-{{ current_user.role }}">{{ current_user.role | upper }}</span>.</p>
+
+    {% if current_user.is_dm() %}
+        <p><a href="{{ url_for('main.dm_dashboard') }}" class="btn">Open DM Panel</a></p>
+    {% endif %}
+
+    <p><em>Player features coming soon...</em></p>
+</div>
+{% endblock %}

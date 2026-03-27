@@ -1,0 +1,215 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Georgia, serif;
+    background: #1a1a2e;
+    color: #e0d7c6;
+    min-height: 100vh;
+}
+
+/* Nav */
+nav {
+    background: #16213e;
+    padding: 0.75rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #8b4513;
+}
+
+.nav-brand {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #d4a017;
+    text-decoration: none;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.nav-links a {
+    color: #e0d7c6;
+    text-decoration: none;
+}
+
+.nav-links a:hover {
+    color: #d4a017;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+/* Main content */
+main {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Cards */
+.card {
+    background: #16213e;
+    border: 1px solid #8b4513;
+    border-radius: 6px;
+    padding: 2rem;
+}
+
+.card h1 {
+    color: #d4a017;
+    margin-bottom: 1rem;
+}
+
+.card p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    background: #8b4513;
+    color: #e0d7c6;
+    padding: 0.5rem 1.2rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 1rem;
+    font-family: inherit;
+    margin-top: 0.5rem;
+}
+
+.btn:hover {
+    background: #a0522d;
+}
+
+.btn-secondary {
+    background: #2e4057;
+}
+
+.btn-secondary:hover {
+    background: #3a5068;
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #c8b89a;
+    font-size: 0.9rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #d4a017;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-check input {
+    width: auto;
+}
+
+.form-check label {
+    margin-bottom: 0;
+}
+
+.form-group small {
+    display: block;
+    color: #888;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.form-footer {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #aaa;
+}
+
+.form-footer a {
+    color: #d4a017;
+}
+
+/* Flash messages */
+.flash-messages {
+    margin-bottom: 1rem;
+}
+
+.flash {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.flash-success {
+    background: #1a4a2e;
+    border: 1px solid #2d7a4a;
+    color: #7dd9a0;
+}
+
+.flash-error {
+    background: #4a1a1a;
+    border: 1px solid #7a2d2d;
+    color: #d97d7d;
+}
+
+/* Role badges */
+.role-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.role-player {
+    background: #1a3a5c;
+    color: #7ab3e0;
+}
+
+.role-dm {
+    background: #5c2a00;
+    color: #e0a040;
+}
