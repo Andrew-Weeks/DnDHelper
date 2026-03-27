@@ -16,6 +16,7 @@
                     <span class="role-badge role-{{ current_user.role }}">{{ current_user.role | upper }}</span>
                 </span>
                 <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('soundboard.index') }}">Soundboard</a>
                 {% if current_user.is_dm() %}
                     <a href="{{ url_for('main.dm_dashboard') }}">DM Panel</a>
                 {% endif %}

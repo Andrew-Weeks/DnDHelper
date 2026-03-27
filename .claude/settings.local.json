@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(grep -r \"route\\\\|@app\\\\|@.*\\\\.route\" /c/develop/SandBox/DnDHelper --include=*.py)",
+      "Bash(grep -r \"file\\\\|upload\\\\|media\\\\|asset\\\\|blob\\\\|image\" /c/develop/SandBox/DnDHelper --include=*.py)"
     ]
   }
 }

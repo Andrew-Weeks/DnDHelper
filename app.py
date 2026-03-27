@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template
 from flask_login import LoginManager
 from models import db, User
@@ -9,6 +10,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dndhelper.db'
 # Optional: require this passphrase when registering as DM.
 # Set to None to allow anyone to register as DM.
 app.config['DM_SECRET'] = 'dungeon-master'
+
+# Soundboard uploads: stored in <project_root>/uploads/soundboard/<user_id>/
+app.config['SOUNDBOARD_UPLOAD_ROOT'] = os.path.join(app.root_path, 'uploads', 'soundboard')
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB per request
 
 db.init_app(app)
 
@@ -29,9 +34,11 @@ def forbidden(e):
 
 from auth import auth_bp
 from main import main_bp
+from soundboard import soundboard_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
+app.register_blueprint(soundboard_bp)
 
 with app.app_context():
     db.create_all()

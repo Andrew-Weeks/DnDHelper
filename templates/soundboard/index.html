@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% block title %}Soundboard – DnD Helper{% endblock %}
+
+{% block content %}
+<div class="soundboard-page">
+
+  <!-- ===== RECORD SECTION ===== -->
+  <div class="card sb-section">
+    <h2>Record a New Sound</h2>
+    <div class="record-controls">
+      <button id="recordBtn" class="btn" type="button">&#9679; Record</button>
+      <button id="stopBtn"   class="btn btn-secondary" type="button" disabled>&#9632; Stop</button>
+      <span id="recordTimer" class="record-timer hidden">0:00</span>
+      <span id="recordDot"   class="record-dot hidden"></span>
+    </div>
+    <audio id="previewAudio" controls class="audio-preview hidden"></audio>
+    <form id="saveRecordingForm" method="POST"
+          action="{{ url_for('soundboard.save_recording') }}"
+          enctype="multipart/form-data" class="hidden">
+      <input type="hidden" name="audio_blob" id="audioBlobInput">
+      <div class="form-group" style="margin-top:0.75rem;">
+        <label for="recordingName">Name this recording</label>
+        <input type="text" id="recordingName" name="name"
+               placeholder="e.g. Tavern ambience" maxlength="120" required>
+      </div>
+      <button type="submit" class="btn">Save to Soundboard</button>
+    </form>
+  </div>
+
+  <!-- ===== UPLOAD SECTION ===== -->
+  <div class="card sb-section">
+    <h2>Upload Audio File(s)</h2>
+    <form method="POST" action="{{ url_for('soundboard.upload') }}"
+          enctype="multipart/form-data" id="uploadForm">
+      <div class="form-group">
+        <label for="audioFiles">Choose file(s) — mp3, wav, ogg, webm, m4a, aac · max 10 MB each</label>
+        <input type="file" id="audioFiles" name="audio_files"
+               accept=".mp3,.wav,.ogg,.webm,.m4a,.aac" multiple>
+      </div>
+      <div id="uploadNameFields"></div>
+      <button type="submit" class="btn" style="margin-top:0.5rem;">Upload</button>
+    </form>
+  </div>
+
+  <!-- ===== PENDING SHARE REQUESTS ===== -->
+  {% if pending_requests %}
+  <div class="card sb-section">
+    <h2>Incoming Share Requests</h2>
+    {% for req in pending_requests %}
+    <div class="share-request-card">
+      <span>
+        <strong>{{ req.from_user.username }}</strong> wants to share
+        <em>{{ req.soundboard_item.name }}</em> with you.
+      </span>
+      <div class="share-request-actions">
+        <form method="POST" action="{{ url_for('soundboard.accept_share', req_id=req.id) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm">Accept</button>
+        </form>
+        <form method="POST" action="{{ url_for('soundboard.decline_share', req_id=req.id) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-secondary">Decline</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ===== SOUNDBOARD GRID ===== -->
+  <div class="card sb-section">
+    <h2>Your Soundboard</h2>
+    {% if sounds %}
+    <div class="sb-grid">
+      {% for sound in sounds %}
+      <div class="sb-item" id="sbitem-{{ sound.id }}">
+        <!-- Hidden audio element -->
+        <audio id="audio-{{ sound.id }}"
+               src="{{ url_for('soundboard.play', item_id=sound.id) }}"
+               preload="none"></audio>
+
+        <!-- Play button -->
+        <button class="sb-play-btn"
+                onclick="togglePlay({{ sound.id }})"
+                id="playbtn-{{ sound.id }}"
+                title="Play / Stop">
+          <span id="playicon-{{ sound.id }}">&#9654;</span>
+          <span class="sb-label">{{ sound.name }}</span>
+        </button>
+
+        <!-- Action row -->
+        <div class="sb-actions">
+          <!-- Rename -->
+          <button class="sb-action-btn" title="Rename"
+                  onclick="toggleRename({{ sound.id }})">&#9998;</button>
+
+          <!-- Download -->
+          <a class="sb-action-btn" title="Download"
+             href="{{ url_for('soundboard.download', item_id=sound.id) }}">&#8615;</a>
+
+          <!-- Share -->
+          <button class="sb-action-btn" title="Share"
+                  onclick="toggleShare({{ sound.id }})">&#10140;</button>
+
+          <!-- Delete -->
+          <form method="POST"
+                action="{{ url_for('soundboard.delete', item_id=sound.id) }}"
+                onsubmit="return confirm('Delete &quot;{{ sound.name }}&quot;? This cannot be undone.');"
+                style="display:inline;">
+            <button type="submit" class="sb-action-btn sb-delete-btn" title="Delete">&#128465;</button>
+          </form>
+        </div>
+
+        <!-- Rename form (hidden by default) -->
+        <form method="POST"
+              action="{{ url_for('soundboard.rename', item_id=sound.id) }}"
+              class="sb-inline-form hidden" id="renameform-{{ sound.id }}">
+          <input type="text" name="name" value="{{ sound.name }}"
+                 maxlength="120" required class="sb-inline-input">
+          <button type="submit" class="btn btn-sm">Save</button>
+          <button type="button" class="btn btn-sm btn-secondary"
+                  onclick="toggleRename({{ sound.id }})">Cancel</button>
+        </form>
+
+        <!-- Share form (hidden by default) -->
+        <form method="POST"
+              action="{{ url_for('soundboard.share') }}"
+              class="sb-inline-form hidden" id="shareform-{{ sound.id }}">
+          <input type="hidden" name="item_id" value="{{ sound.id }}">
+          <input type="text" name="target_username" placeholder="Enter username"
+                 maxlength="80" required class="sb-inline-input">
+          <button type="submit" class="btn btn-sm">Send</button>
+          <button type="button" class="btn btn-sm btn-secondary"
+                  onclick="toggleShare({{ sound.id }})">Cancel</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="sb-empty">No sounds yet — record or upload something above!</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Recording
+// ---------------------------------------------------------------------------
+let mediaRecorder = null;
+let audioChunks   = [];
+let timerInterval = null;
+let elapsed       = 0;
+
+const recordBtn    = document.getElementById('recordBtn');
+const stopBtn      = document.getElementById('stopBtn');
+const timerEl      = document.getElementById('recordTimer');
+const dotEl        = document.getElementById('recordDot');
+const previewAudio = document.getElementById('previewAudio');
+const saveForm     = document.getElementById('saveRecordingForm');
+const blobInput    = document.getElementById('audioBlobInput');
+
+recordBtn.addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks  = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      previewAudio.src = URL.createObjectURL(blob);
+      previewAudio.classList.remove('hidden');
+
+      // Store blob in a hidden file input via a DataTransfer trick
+      const file = new File([blob], 'recording.webm', { type: 'audio/webm' });
+      const dt   = new DataTransfer();
+      dt.items.add(file);
+      // Replace the hidden text input with a file input carrying the blob
+      const realInput = document.createElement('input');
+      realInput.type  = 'file';
+      realInput.name  = 'audio_blob';
+      realInput.style.display = 'none';
+      realInput.files_ = dt.files; // won't work natively — use FormData instead
+      // We'll override form submit to use FormData
+      saveForm.classList.remove('hidden');
+
+      // Stash blob for submit handler
+      saveForm._blob = blob;
+
+      clearInterval(timerInterval);
+      dotEl.classList.add('hidden');
+    };
+
+    mediaRecorder.start();
+    elapsed = 0;
+    timerEl.textContent = '0:00';
+    timerEl.classList.remove('hidden');
+    dotEl.classList.remove('hidden');
+    timerInterval = setInterval(() => {
+      elapsed++;
+      const m = Math.floor(elapsed / 60);
+      const s = String(elapsed % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }, 1000);
+
+    recordBtn.disabled = true;
+    stopBtn.disabled   = false;
+    saveForm.classList.add('hidden');
+    previewAudio.classList.add('hidden');
+  } catch (err) {
+    alert('Microphone access denied or unavailable.');
+  }
+});
+
+stopBtn.addEventListener('click', () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  recordBtn.disabled = false;
+  stopBtn.disabled   = true;
+});
+
+// Override form submit to POST the blob via FormData
+saveForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('recordingName').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  if (!saveForm._blob) { alert('No recording to save.'); return; }
+
+  const fd = new FormData();
+  fd.append('audio_blob', saveForm._blob, 'recording.webm');
+  fd.append('name', name);
+
+  const resp = await fetch(saveForm.action, { method: 'POST', body: fd });
+  // The server redirects; follow it
+  window.location.href = resp.url;
+});
+
+// ---------------------------------------------------------------------------
+// Upload: generate name fields per selected file
+// ---------------------------------------------------------------------------
+document.getElementById('audioFiles').addEventListener('change', function () {
+  const container = document.getElementById('uploadNameFields');
+  container.innerHTML = '';
+  Array.from(this.files).forEach(file => {
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    div.innerHTML = `
+      <label>Name for <em>${file.name}</em></label>
+      <input type="text" name="name_${file.name}" value="${baseName}"
+             maxlength="120" placeholder="${baseName}">
+    `;
+    container.appendChild(div);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Playback
+// ---------------------------------------------------------------------------
+const currentlyPlaying = {};
+
+function togglePlay(id) {
+  const audio   = document.getElementById(`audio-${id}`);
+  const iconEl  = document.getElementById(`playicon-${id}`);
+
+  if (!audio.paused) {
+    audio.pause();
+    audio.currentTime = 0;
+    iconEl.textContent = '▶';
+    return;
+  }
+
+  // Stop any other playing audio
+  Object.keys(currentlyPlaying).forEach(otherId => {
+    const other = document.getElementById(`audio-${otherId}`);
+    if (other && !other.paused) {
+      other.pause();
+      other.currentTime = 0;
+      document.getElementById(`playicon-${otherId}`).textContent = '▶';
+    }
+  });
+
+  audio.play();
+  iconEl.textContent = '⏹';
+  currentlyPlaying[id] = true;
+
+  audio.onended = () => {
+    iconEl.textContent = '▶';
+    delete currentlyPlaying[id];
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Rename / Share toggle
+// ---------------------------------------------------------------------------
+function toggleRename(id) {
+  document.getElementById(`renameform-${id}`).classList.toggle('hidden');
+}
+
+function toggleShare(id) {
+  document.getElementById(`shareform-${id}`).classList.toggle('hidden');
+}
+</script>
+{% endblock %}

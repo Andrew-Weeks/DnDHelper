@@ -194,6 +194,197 @@ main {
     color: #d97d7d;
 }
 
+/* Soundboard page */
+.soundboard-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.sb-section h2 {
+    color: #d4a017;
+    margin-bottom: 1rem;
+    font-size: 1.15rem;
+}
+
+/* Record controls */
+.record-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.record-timer {
+    font-family: monospace;
+    font-size: 1rem;
+    color: #e0d7c6;
+}
+
+.record-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c0392b;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+}
+
+.audio-preview {
+    display: block;
+    margin-top: 0.75rem;
+    width: 100%;
+    accent-color: #d4a017;
+}
+
+/* Upload file input */
+input[type="file"] {
+    color: #e0d7c6;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+/* Share request cards */
+.share-request-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #2a2a4a;
+}
+
+.share-request-card:last-child {
+    border-bottom: none;
+}
+
+.share-request-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Soundboard grid */
+.sb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.sb-item {
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sb-play-btn {
+    background: #8b4513;
+    color: #e0d7c6;
+    border: none;
+    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    transition: background 0.15s;
+}
+
+.sb-play-btn:hover {
+    background: #a0522d;
+}
+
+.sb-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.sb-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.sb-action-btn {
+    background: #2e4057;
+    color: #e0d7c6;
+    border: none;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.15s;
+}
+
+.sb-action-btn:hover {
+    background: #3a5068;
+}
+
+.sb-delete-btn:hover {
+    background: #7a2d2d;
+}
+
+.sb-inline-form {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+
+.sb-inline-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.3rem 0.5rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.sb-inline-input:focus {
+    outline: none;
+    border-color: #d4a017;
+}
+
+.sb-empty {
+    color: #888;
+    font-style: italic;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
 /* Role badges */
 .role-badge {
     display: inline-block;
