@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}{{ sess.title }} — {{ campaign.name }} — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="session-view">
+
+    <!-- Header -->
+    <div class="card" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h1>{{ sess.title }}</h1>
+            <p style="margin:0; opacity:0.7;">
+                {{ campaign.name }} &bull; {{ sess.created_at.strftime('%B %d, %Y') }}
+                &nbsp;<span class="status-badge status-{{ sess.status }}">{{ sess.status }}</span>
+            </p>
+        </div>
+        <a href="{{ url_for('campaign.campaign_view', campaign_id=campaign.id) }}" class="btn btn-secondary">&larr; Campaign</a>
+    </div>
+
+    <!-- Actions (DM only) -->
+    {% if current_user.is_dm() and campaign.dm_id == current_user.id %}
+    <div class="card" style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+
+        {% if sess.status == 'uploaded' or sess.status == 'failed' %}
+        <form method="POST" action="{{ url_for('campaign.session_process', campaign_id=campaign.id, session_id=sess.id) }}">
+            <button type="submit" class="btn">&#9654; Process Transcript</button>
+        </form>
+        {% elif sess.status == 'processing' %}
+        <span style="opacity:0.8;">&#8987; Processing… (this page will refresh automatically)</span>
+        {% endif %}
+
+        {% if sess.audio_filename %}
+        <a href="{{ url_for('campaign.session_audio', campaign_id=campaign.id, session_id=sess.id) }}"
+           class="btn btn-secondary" download>&#8615; Download Audio</a>
+        {% endif %}
+
+        <form method="POST"
+              action="{{ url_for('campaign.session_delete', campaign_id=campaign.id, session_id=sess.id) }}"
+              onsubmit="return confirm('Delete this session and its transcript? This cannot be undone.');"
+              style="margin-left:auto;">
+            <button type="submit" class="btn btn-secondary" style="color:#e07070;">&#128465; Delete Session</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Error message -->
+    {% if sess.status == 'failed' and sess.error_message %}
+    <div class="card" style="margin-top:1rem; border-left:4px solid #e07070;">
+        <h3 style="color:#e07070;">Processing Failed</h3>
+        <pre style="font-size:0.8rem; overflow:auto; white-space:pre-wrap; opacity:0.8;">{{ sess.error_message }}</pre>
+    </div>
+    {% endif %}
+
+    <!-- Speaker mapping (DM only, after transcript is ready) -->
+    {% if current_user.is_dm() and campaign.dm_id == current_user.id and sess.status == 'completed' and unique_labels %}
+    <div class="card" style="margin-top:1rem;">
+        <h2>Assign Speakers</h2>
+        <p style="opacity:0.8; font-size:0.9rem;">Match each detected speaker to a campaign member. Leave blank to keep the raw label.</p>
+        <form method="POST" action="{{ url_for('campaign.map_speakers', campaign_id=campaign.id, session_id=sess.id) }}">
+            {% for label in unique_labels %}
+            <div class="form-group" style="display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem;">
+                <label style="min-width:120px; margin:0;">{{ label }}</label>
+                <select name="speaker_{{ label }}" class="sb-inline-input" style="flex:1; max-width:300px;">
+                    <option value="">— Unassigned —</option>
+                    {% for user in member_users %}
+                    <option value="{{ user.id }}"
+                        {% if sess.segments | selectattr('speaker_label', 'eq', label) | selectattr('speaker_user_id', 'eq', user.id) | list %}selected{% endif %}>
+                        {{ user.username }}{% if user.id == campaign.dm_id %} (DM){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-sm" style="margin-top:0.5rem;">Save Assignments</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Transcript -->
+    {% if sess.status == 'completed' %}
+    <div class="card" style="margin-top:1rem;">
+        <h2>Transcript</h2>
+        {% if sess.segments %}
+        <div class="transcript-log">
+            {% for seg in sess.segments %}
+            <div class="transcript-line">
+                <div class="transcript-meta">
+                    <span class="transcript-speaker">
+                        {% if seg.speaker_user %}
+                            {{ seg.speaker_user.username }}
+                        {% else %}
+                            {{ seg.speaker_label }}
+                        {% endif %}
+                    </span>
+                    <span class="transcript-timestamp">{{ '%d:%02d'|format((seg.start_time|int) // 60, (seg.start_time|int) % 60) }}</span>
+                </div>
+                <p class="transcript-text">{{ seg.text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="sb-empty">No transcript segments found.</p>
+        {% endif %}
+    </div>
+    {% elif sess.status == 'processing' %}
+    <div class="card" style="margin-top:1rem; text-align:center; padding:2rem;">
+        <p style="font-size:1.2rem;">&#8987; Transcribing session audio…</p>
+        <p style="opacity:0.7; font-size:0.9rem;">This can take several minutes depending on session length and your hardware. The page will refresh automatically.</p>
+    </div>
+    {% elif sess.status == 'uploaded' %}
+    <div class="card" style="margin-top:1rem; text-align:center; padding:2rem;">
+        <p style="opacity:0.8;">Session audio uploaded. Click <strong>Process Transcript</strong> above to begin transcription.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if sess.status == 'processing' %}
+<script>
+// Poll status every 10 seconds and reload when done
+setInterval(async () => {
+    try {
+        const resp = await fetch('{{ url_for("campaign.session_status", campaign_id=campaign.id, session_id=sess.id) }}');
+        const data = await resp.json();
+        if (data.status !== 'processing') {
+            window.location.reload();
+        }
+    } catch (_) {}
+}, 10000);
+</script>
+{% endif %}
+{% endblock %}

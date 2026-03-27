@@ -3,7 +3,9 @@
     "allow": [
       "Bash(pip install:*)",
       "Bash(grep -r \"route\\\\|@app\\\\|@.*\\\\.route\" /c/develop/SandBox/DnDHelper --include=*.py)",
-      "Bash(grep -r \"file\\\\|upload\\\\|media\\\\|asset\\\\|blob\\\\|image\" /c/develop/SandBox/DnDHelper --include=*.py)"
+      "Bash(grep -r \"file\\\\|upload\\\\|media\\\\|asset\\\\|blob\\\\|image\" /c/develop/SandBox/DnDHelper --include=*.py)",
+      "Bash(.venv/Scripts/python.exe -c \"import app\")",
+      "Bash(.venv/Scripts/pip install:*)"
     ]
   }
 }

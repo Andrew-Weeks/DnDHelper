@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}{{ campaign.name }} — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="campaign-view">
+
+    <!-- Header -->
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h1>{{ campaign.name }}</h1>
+            <p style="margin:0; opacity:0.7;">DM: {{ campaign.dm.username }} &bull; Created {{ campaign.created_at.strftime('%b %d, %Y') }}</p>
+        </div>
+        <a href="{{ url_for('campaign.campaign_list') }}" class="btn btn-secondary">&larr; Campaigns</a>
+    </div>
+
+    <!-- Players -->
+    <div class="card" style="margin-top:1rem;">
+        <h2>Players</h2>
+        {% if members %}
+        <ul class="member-list">
+            {% for m in members %}
+            <li class="member-item">
+                <span>{{ m.user.username }}</span>
+                {% if current_user.is_dm() and campaign.dm_id == current_user.id %}
+                <form method="POST"
+                      action="{{ url_for('campaign.remove_member', campaign_id=campaign.id, user_id=m.user_id) }}"
+                      onsubmit="return confirm('Remove {{ m.user.username }} from this campaign?');"
+                      style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">Remove</button>
+                </form>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="sb-empty">No players yet.</p>
+        {% endif %}
+
+        {% if current_user.is_dm() and campaign.dm_id == current_user.id %}
+        <div style="margin-top:1rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem;">
+            <h3 style="margin-bottom:0.5rem;">Invite a Player</h3>
+            <form method="POST" action="{{ url_for('campaign.campaign_invite', campaign_id=campaign.id) }}"
+                  style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <input type="text" name="username" placeholder="Player username"
+                       maxlength="80" required class="sb-inline-input" style="flex:1; min-width:160px;">
+                <button type="submit" class="btn btn-sm">Send Invite</button>
+            </form>
+        </div>
+
+        {% if pending_invites %}
+        <div style="margin-top:1rem;">
+            <p style="opacity:0.7; font-size:0.9rem;">Pending invites:
+                {% for inv in pending_invites %}
+                    <em>{{ inv.to_user.username }}</em>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Voice sample (players only) -->
+    {% if not current_user.is_dm() %}
+    <div class="card" style="margin-top:1rem;">
+        <h2>Your Voice Sample</h2>
+        <p style="opacity:0.8; font-size:0.9rem;">Record a short voice sample (10–30 seconds). The DM can use this to help identify your voice in session transcripts.</p>
+        {% if my_voice_sample %}
+        <p style="color:#8ddb8d;">&#10003; Voice sample on file.</p>
+        <form method="POST" action="{{ url_for('campaign.delete_voice_sample', campaign_id=campaign.id) }}"
+              onsubmit="return confirm('Delete your voice sample?');" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-secondary">Delete sample</button>
+        </form>
+        {% else %}
+        <p style="opacity:0.7;">No voice sample recorded yet.</p>
+        {% endif %}
+
+        <div style="margin-top:1rem;">
+            <div class="record-controls">
+                <button id="vsRecordBtn" class="btn btn-sm" type="button">&#9679; Record</button>
+                <button id="vsStopBtn" class="btn btn-sm btn-secondary" type="button" disabled>&#9632; Stop</button>
+                <span id="vsTimer" class="record-timer hidden">0:00</span>
+            </div>
+            <audio id="vsPreview" controls class="audio-preview hidden" style="margin-top:0.5rem;"></audio>
+            <div id="vsSaveArea" class="hidden" style="margin-top:0.5rem;">
+                <button id="vsSaveBtn" class="btn btn-sm">Save Voice Sample</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sessions -->
+    <div class="card" style="margin-top:1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+            <h2 style="margin:0;">Sessions</h2>
+            {% if current_user.is_dm() and campaign.dm_id == current_user.id %}
+            <a href="{{ url_for('campaign.session_new', campaign_id=campaign.id) }}" class="btn btn-sm">+ Record Session</a>
+            {% endif %}
+        </div>
+
+        {% if sessions %}
+        <div style="margin-top:1rem;">
+            {% for sess in sessions %}
+            <a href="{{ url_for('campaign.session_view', campaign_id=campaign.id, session_id=sess.id) }}"
+               class="session-row">
+                <span class="session-title">{{ sess.title }}</span>
+                <span class="session-meta">{{ sess.created_at.strftime('%b %d, %Y') }}</span>
+                <span class="status-badge status-{{ sess.status }}">{{ sess.status }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="sb-empty" style="margin-top:1rem;">No sessions recorded yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% if not current_user.is_dm() %}
+<script>
+// Voice sample recording
+let vsRecorder = null, vsChunks = [], vsBlob = null;
+const vsRecordBtn = document.getElementById('vsRecordBtn');
+const vsStopBtn   = document.getElementById('vsStopBtn');
+const vsTimer     = document.getElementById('vsTimer');
+const vsPreview   = document.getElementById('vsPreview');
+const vsSaveArea  = document.getElementById('vsSaveArea');
+const vsSaveBtn   = document.getElementById('vsSaveBtn');
+let vsElapsed = 0, vsInterval = null;
+
+vsRecordBtn.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        vsChunks = [];
+        vsRecorder = new MediaRecorder(stream);
+        vsRecorder.ondataavailable = e => { if (e.data.size > 0) vsChunks.push(e.data); };
+        vsRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            vsBlob = new Blob(vsChunks, { type: 'audio/webm' });
+            vsPreview.src = URL.createObjectURL(vsBlob);
+            vsPreview.classList.remove('hidden');
+            vsSaveArea.classList.remove('hidden');
+            clearInterval(vsInterval);
+        };
+        vsRecorder.start();
+        vsElapsed = 0;
+        vsTimer.textContent = '0:00';
+        vsTimer.classList.remove('hidden');
+        vsRecordBtn.disabled = true;
+        vsStopBtn.disabled = false;
+        vsInterval = setInterval(() => {
+            vsElapsed++;
+            const m = Math.floor(vsElapsed / 60);
+            const s = String(vsElapsed % 60).padStart(2, '0');
+            vsTimer.textContent = `${m}:${s}`;
+        }, 1000);
+    } catch (err) {
+        alert('Microphone access denied or unavailable.');
+    }
+});
+
+vsStopBtn.addEventListener('click', () => {
+    if (vsRecorder && vsRecorder.state !== 'inactive') vsRecorder.stop();
+    vsRecordBtn.disabled = false;
+    vsStopBtn.disabled = true;
+});
+
+vsSaveBtn.addEventListener('click', async () => {
+    if (!vsBlob) return;
+    const fd = new FormData();
+    fd.append('audio_blob', vsBlob, 'voice_sample.webm');
+    const resp = await fetch('{{ url_for("campaign.upload_voice_sample", campaign_id=campaign.id) }}',
+                             { method: 'POST', body: fd });
+    window.location.href = resp.url;
+});
+</script>
+{% endif %}
+{% endblock %}

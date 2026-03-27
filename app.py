@@ -13,7 +13,13 @@ app.config['DM_SECRET'] = 'dungeon-master'
 
 # Soundboard uploads: stored in <project_root>/uploads/soundboard/<user_id>/
 app.config['SOUNDBOARD_UPLOAD_ROOT'] = os.path.join(app.root_path, 'uploads', 'soundboard')
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB per request
+app.config['SESSION_UPLOAD_ROOT']    = os.path.join(app.root_path, 'uploads', 'sessions')
+app.config['VOICE_SAMPLE_ROOT']      = os.path.join(app.root_path, 'uploads', 'voice_samples')
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB (session recordings can be large)
+
+# Transcription settings — set via environment variables before running
+app.config['WHISPER_MODEL_SIZE'] = os.environ.get('WHISPER_MODEL_SIZE', 'base')
+app.config['HF_AUTH_TOKEN']      = os.environ.get('HF_AUTH_TOKEN', '')
 
 db.init_app(app)
 
@@ -35,10 +41,12 @@ def forbidden(e):
 from auth import auth_bp
 from main import main_bp
 from soundboard import soundboard_bp
+from campaign import campaign_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(soundboard_bp)
+app.register_blueprint(campaign_bp)
 
 with app.app_context():
     db.create_all()

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Campaigns — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <h1>Campaigns</h1>
+        {% if current_user.is_dm() %}
+            <a href="{{ url_for('campaign.campaign_create') }}" class="btn">+ New Campaign</a>
+        {% endif %}
+    </div>
+
+    {% if pending_invites %}
+    <div class="campaign-invites-section" style="margin-top:1.5rem;">
+        <h2>Pending Invites</h2>
+        {% for invite in pending_invites %}
+        <div class="share-request-card">
+            <span>You have been invited to join <strong>{{ invite.campaign.name }}</strong> by <em>{{ invite.campaign.dm.username }}</em>.</span>
+            <div class="share-request-actions">
+                <form method="POST" action="{{ url_for('campaign.accept_invite', invite_id=invite.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm">Accept</button>
+                </form>
+                <form method="POST" action="{{ url_for('campaign.decline_invite', invite_id=invite.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">Decline</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="margin-top:1.5rem;">
+        {% if campaigns %}
+        <div class="campaign-grid">
+            {% for c in campaigns %}
+            <a href="{{ url_for('campaign.campaign_view', campaign_id=c.id) }}" class="campaign-card">
+                <div class="campaign-card-name">{{ c.name }}</div>
+                <div class="campaign-card-meta">
+                    {% if current_user.is_dm() %}
+                        {{ c.members | length }} player{{ 's' if c.members | length != 1 }}
+                        &nbsp;&bull;&nbsp;
+                        {{ c.sessions | length }} session{{ 's' if c.sessions | length != 1 }}
+                    {% else %}
+                        DM: {{ c.dm.username }}
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="sb-empty">
+            {% if current_user.is_dm() %}
+                No campaigns yet — create one above!
+            {% else %}
+                You are not in any campaigns yet. Wait for a DM to invite you.
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
