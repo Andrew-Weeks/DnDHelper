@@ -88,6 +88,11 @@
 
         <!-- Action row -->
         <div class="sb-actions">
+          <!-- Play Reversed -->
+          <button class="sb-action-btn" title="Play Reversed"
+                  id="revbtn-{{ sound.id }}"
+                  onclick="toggleReverse({{ sound.id }}, '{{ url_for('soundboard.play', item_id=sound.id) }}')">&#9664;&#9664;</button>
+
           <!-- Rename -->
           <button class="sb-action-btn" title="Rename"
                   onclick="toggleRename({{ sound.id }})">&#9998;</button>
@@ -259,37 +264,95 @@ document.getElementById('audioFiles').addEventListener('change', function () {
 // ---------------------------------------------------------------------------
 // Playback
 // ---------------------------------------------------------------------------
+
+// currentlyPlaying[id] = { type: 'normal' } | { type: 'reverse', source, ctx }
 const currentlyPlaying = {};
 
-function togglePlay(id) {
-  const audio   = document.getElementById(`audio-${id}`);
-  const iconEl  = document.getElementById(`playicon-${id}`);
+// Cached reversed AudioBuffers so we only fetch+decode once per sound
+const reversedBufferCache = {};
 
-  if (!audio.paused) {
-    audio.pause();
-    audio.currentTime = 0;
-    iconEl.textContent = '▶';
-    return;
+function stopSound(id) {
+  const entry = currentlyPlaying[id];
+  if (!entry) return;
+  if (entry.type === 'normal') {
+    const audio = document.getElementById(`audio-${id}`);
+    if (audio) { audio.pause(); audio.currentTime = 0; }
+    document.getElementById(`playicon-${id}`).textContent = '▶';
+  } else {
+    try { entry.source.stop(); } catch (_) {}
+    entry.ctx.close();
+    document.getElementById(`revbtn-${id}`).textContent = '◀◀';
   }
+  delete currentlyPlaying[id];
+}
 
-  // Stop any other playing audio
-  Object.keys(currentlyPlaying).forEach(otherId => {
-    const other = document.getElementById(`audio-${otherId}`);
-    if (other && !other.paused) {
-      other.pause();
-      other.currentTime = 0;
-      document.getElementById(`playicon-${otherId}`).textContent = '▶';
-    }
-  });
+function stopAll() {
+  Object.keys(currentlyPlaying).forEach(id => stopSound(id));
+}
 
+function togglePlay(id) {
+  if (currentlyPlaying[id]) { stopSound(id); return; }
+  stopAll();
+
+  const audio  = document.getElementById(`audio-${id}`);
+  const iconEl = document.getElementById(`playicon-${id}`);
+
+  currentlyPlaying[id] = { type: 'normal' };
   audio.play();
   iconEl.textContent = '⏹';
-  currentlyPlaying[id] = true;
 
   audio.onended = () => {
     iconEl.textContent = '▶';
     delete currentlyPlaying[id];
   };
+}
+
+async function toggleReverse(id, src) {
+  if (currentlyPlaying[id]) { stopSound(id); return; }
+  stopAll();
+
+  const btnEl = document.getElementById(`revbtn-${id}`);
+  btnEl.textContent = '…';
+  btnEl.disabled = true;
+
+  try {
+    // Fetch + decode if not cached
+    if (!reversedBufferCache[id]) {
+      const resp   = await fetch(src);
+      const raw    = await resp.arrayBuffer();
+      const tmpCtx = new AudioContext();
+      const decoded = await tmpCtx.decodeAudioData(raw);
+      await tmpCtx.close();
+
+      // Reverse each channel's samples in-place
+      for (let c = 0; c < decoded.numberOfChannels; c++) {
+        decoded.getChannelData(c).reverse();
+      }
+      reversedBufferCache[id] = decoded;
+    }
+
+    const ctx    = new AudioContext();
+    const source = ctx.createBufferSource();
+    source.buffer = reversedBufferCache[id];
+    source.connect(ctx.destination);
+    source.start();
+
+    currentlyPlaying[id] = { type: 'reverse', source, ctx };
+    btnEl.textContent = '⏹';
+    btnEl.disabled = false;
+
+    source.onended = () => {
+      btnEl.textContent = '◀◀';
+      if (currentlyPlaying[id] && currentlyPlaying[id].type === 'reverse') {
+        ctx.close();
+        delete currentlyPlaying[id];
+      }
+    };
+  } catch (err) {
+    console.error('Reverse playback failed:', err);
+    btnEl.textContent = '◀◀';
+    btnEl.disabled = false;
+  }
 }
 
 // ---------------------------------------------------------------------------
