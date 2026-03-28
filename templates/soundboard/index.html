@@ -40,6 +40,148 @@
     </div>
   </div>
 
+  <div class="card sb-section">
+    <h2>{{ active_character.name }} Spellbook</h2>
+    <p class="sb-character-copy">
+      Built-in spells come from 5e SRD 2014. Use custom spells for 2024 content, homebrew, or anything not included in SRD.
+    </p>
+
+    <div class="spell-toolbar">
+      <form method="POST" action="{{ url_for('soundboard.sync_spells') }}">
+        <input type="hidden" name="character_id" value="{{ active_character.id }}">
+        <button type="submit" class="btn btn-sm">Sync SRD Spells</button>
+      </form>
+      <p class="spell-toolbar-copy">SRD spells in local catalog: <strong>{{ spell_count }}</strong></p>
+    </div>
+
+    <form method="GET" action="{{ url_for('soundboard.index') }}" class="spell-filter-grid">
+      <input type="hidden" name="character_id" value="{{ active_character.id }}">
+      <div class="form-group">
+        <label for="spellLevel">Spell Level</label>
+        <select id="spellLevel" name="spell_level" class="sb-inline-input">
+          {% for level in spell_level_options %}
+          <option value="{{ level }}" {% if level == selected_spell_level %}selected{% endif %}>
+            {{ spell_level_label(level) }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="spellSearch">Search by name</label>
+        <input id="spellSearch" type="text" name="spell_q" value="{{ spell_search }}"
+               class="sb-inline-input" placeholder="e.g. fireball">
+      </div>
+      <div class="spell-filter-actions">
+        <button type="submit" class="btn btn-sm">Apply Filters</button>
+      </div>
+    </form>
+
+    <form method="POST" action="{{ url_for('soundboard.add_spell_to_character') }}" class="spell-add-row">
+      <input type="hidden" name="character_id" value="{{ active_character.id }}">
+      <div class="form-group">
+        <label for="spellSelect">Add {{ selected_spell_level_label }} Spell</label>
+        <select id="spellSelect" name="spell_id" class="sb-inline-input" required>
+          <option value="">Select a spell...</option>
+          {% for spell in available_spells %}
+          <option value="{{ spell.id }}">{{ spell.name }} {% if spell.source_type == 'custom' %}(Custom){% else %}(SRD){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-sm">Add Spell</button>
+    </form>
+
+    <div class="spellbook-grid">
+      <div class="spellbook-col">
+        <h3>Known Spells</h3>
+        {% if character_spell_links %}
+        <div class="spell-list">
+          {% for link in character_spell_links %}
+          <div class="spell-item">
+            <div class="spell-item-header">
+              <strong>{{ link.spell.name }}</strong>
+              <span class="spell-meta">{{ spell_level_label(link.spell.level) }} · {{ link.spell.source_type|upper }}</span>
+            </div>
+            {% if link.spell.school or link.spell.casting_time or link.spell.spell_range or link.spell.components or link.spell.duration or link.spell.material_description %}
+            <p class="spell-fact-line">
+              {% if link.spell.school %}School: {{ link.spell.school }}{% endif %}
+              {% if link.spell.casting_time %} · Cast: {{ link.spell.casting_time }}{% endif %}
+              {% if link.spell.spell_range %} · Range: {{ link.spell.spell_range }}{% endif %}
+              {% if link.spell.components %} · Components: {{ link.spell.components }}{% endif %}
+              {% if link.spell.duration %} · Duration: {{ link.spell.duration }}{% endif %}
+            </p>
+            {% endif %}
+            {% if link.spell.material_description %}
+            <p class="spell-fact-line">Material details: {{ link.spell.material_description }}</p>
+            {% endif %}
+            <p class="spell-desc">{{ link.spell.description }}</p>
+            <form method="POST" action="{{ url_for('soundboard.remove_spell_from_character', link_id=link.id) }}">
+              <button type="submit" class="btn btn-sm btn-secondary">Remove</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="sb-empty">No spells on this character yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="spellbook-col">
+        <h3>Create Custom Spell</h3>
+        <form method="POST" action="{{ url_for('soundboard.create_custom_spell') }}" class="spell-custom-form">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
+          <div class="form-group">
+            <label for="customName">Name</label>
+            <input id="customName" type="text" name="custom_name" maxlength="120" class="sb-inline-input" required>
+          </div>
+          <div class="form-group">
+            <label for="customLevel">Level</label>
+            <select id="customLevel" name="custom_level" class="sb-inline-input" required>
+              {% for level in spell_level_options %}
+              <option value="{{ level }}">{{ spell_level_label(level) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="customSchool">School</label>
+            <input id="customSchool" type="text" name="custom_school" maxlength="80" class="sb-inline-input"
+                   placeholder="e.g. Evocation">
+          </div>
+          <div class="form-group">
+            <label for="customCast">Casting Time</label>
+            <input id="customCast" type="text" name="custom_casting_time" maxlength="120" class="sb-inline-input"
+                   placeholder="e.g. 1 action">
+          </div>
+          <div class="form-group">
+            <label for="customRange">Range</label>
+            <input id="customRange" type="text" name="custom_range" maxlength="120" class="sb-inline-input"
+                   placeholder="e.g. 60 feet">
+          </div>
+          <div class="form-group">
+            <label for="customComponents">Components</label>
+            <input id="customComponents" type="text" name="custom_components" maxlength="120" class="sb-inline-input"
+                   placeholder="e.g. V, S, M">
+          </div>
+          <div class="form-group">
+            <label for="customMaterialDescription">Material component details</label>
+            <textarea id="customMaterialDescription" name="custom_material_description" class="sb-inline-input"
+                      rows="3" placeholder="e.g. A pinch of sulfur and a tiny ball of bat guano"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="customDuration">Duration</label>
+            <input id="customDuration" type="text" name="custom_duration" maxlength="120" class="sb-inline-input"
+                   placeholder="e.g. Instantaneous">
+          </div>
+          <div class="form-group">
+            <label for="customDescription">Description</label>
+            <textarea id="customDescription" name="custom_description" class="sb-inline-input"
+                      rows="5" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm">Create and Add</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== RECORD SECTION ===== -->
   <div class="card sb-section">
     <h2>Record a New Sound</h2>

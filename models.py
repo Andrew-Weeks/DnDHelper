@@ -40,6 +40,49 @@ class Character(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref=db.backref('characters', lazy=True, cascade='all, delete-orphan'))
+    spell_links = db.relationship('CharacterSpell', backref='character', lazy=True, cascade='all, delete-orphan')
+
+
+class Spell(db.Model):
+    __tablename__ = 'spell'
+    __table_args__ = (
+        db.UniqueConstraint('source_type', 'external_id'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    level = db.Column(db.Integer, nullable=False, default=0)
+    school = db.Column(db.String(80), nullable=True)
+    casting_time = db.Column(db.String(120), nullable=True)
+    spell_range = db.Column(db.String(120), nullable=True)
+    components = db.Column(db.String(120), nullable=True)
+    material_description = db.Column(db.Text, nullable=True)
+    duration = db.Column(db.String(120), nullable=True)
+    description = db.Column(db.Text, nullable=False)
+    higher_level = db.Column(db.Text, nullable=True)
+    class_list = db.Column(db.String(255), nullable=True)
+    source_type = db.Column(db.String(20), nullable=False, default='srd')
+    source_name = db.Column(db.String(120), nullable=True)
+    external_id = db.Column(db.String(120), nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    created_by = db.relationship('User', foreign_keys=[created_by_user_id],
+                                 backref=db.backref('custom_spells', lazy=True))
+    character_links = db.relationship('CharacterSpell', backref='spell', lazy=True, cascade='all, delete-orphan')
+
+
+class CharacterSpell(db.Model):
+    __tablename__ = 'character_spell'
+    __table_args__ = (db.UniqueConstraint('character_id', 'spell_id'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=False)
+    spell_id = db.Column(db.Integer, db.ForeignKey('spell.id'), nullable=False)
+    added_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class SoundboardItem(db.Model):
@@ -237,6 +280,22 @@ def ensure_schema_upgrades():
 
     if 'character' not in table_names:
         Character.__table__.create(bind=db.engine)
+
+    if 'spell' not in table_names:
+        Spell.__table__.create(bind=db.engine)
+
+    if 'character_spell' not in table_names:
+        CharacterSpell.__table__.create(bind=db.engine)
+
+    spell_columns = {col['name'] for col in inspect(db.engine).get_columns('spell')}
+    if 'material_description' not in spell_columns:
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE spell ADD COLUMN material_description TEXT'))
+
+    with db.engine.begin() as conn:
+        conn.execute(text('CREATE INDEX IF NOT EXISTS ix_spell_name ON spell(name)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS ix_spell_level ON spell(level)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS ix_spell_source_type ON spell(source_type)'))
 
     soundboard_columns = {col['name'] for col in inspect(db.engine).get_columns('soundboard_item')}
     if 'character_id' not in soundboard_columns:

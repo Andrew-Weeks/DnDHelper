@@ -65,6 +65,19 @@ Each account can manage multiple character soundboards. Existing users are autom
 
 Audio files are stored in `uploads/soundboard/characters/<character_id>/` on the server.
 
+### Character Spellbook
+Each character now has a spellbook section on the soundboard page.
+
+- **SRD sync** - click "Sync SRD Spells" to import spells from Open5e (5e SRD source)
+- **Level dropdown flow** - pick a spell level, select a spell from the dropdown, and add it to the active character
+- **Search flow** - filter the dropdown list by spell name while keeping level selected
+- **Known spells panel** - review each added spell with description and quick remove
+- **Custom spells** - add your own spells (including 2024/homebrew text) and attach them to your character
+
+Notes:
+- Built-in imported spells are SRD-based content only.
+- Non-SRD official spell text is not bundled; use custom spell entries for personal/manual additions.
+
 ### Session Transcription Prerequisites
 If you use session transcription (Whisper + speaker diarization), you need both Python packages and system audio tools.
 

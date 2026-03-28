@@ -8,14 +8,17 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from models import (
+    CharacterSpell,
     db,
     Character,
     Friendship,
     ShareRequest,
+    Spell,
     SoundboardItem,
     User,
     get_or_create_default_character,
 )
+from spell_sync import sync_open5e_srd_spells
 
 soundboard_bp = Blueprint('soundboard', __name__, url_prefix='/soundboard')
 
@@ -93,6 +96,31 @@ def _item_storage_path(item):
     return candidate_paths[0]
 
 
+def _spell_level_options():
+    return list(range(10))
+
+
+def _spell_level_label(level):
+    if level == 0:
+        return 'Cantrip'
+    if level == 1:
+        return '1st Level'
+    if level == 2:
+        return '2nd Level'
+    if level == 3:
+        return '3rd Level'
+    return f'{level}th Level'
+
+
+def _spell_catalog_query(user_id):
+    return Spell.query.filter(
+        db.or_(
+            Spell.source_type == 'srd',
+            Spell.created_by_user_id == user_id,
+        )
+    )
+
+
 def _own_item(item_id):
     """Return the SoundboardItem if it belongs to current_user, else abort 403."""
     item = db.session.get(SoundboardItem, item_id)
@@ -122,6 +150,27 @@ def index():
                         .filter_by(to_user_id=current_user.id, status='pending')
                         .order_by(ShareRequest.created_at.desc())
                         .all())
+
+    selected_spell_level = request.args.get('spell_level', type=int)
+    if selected_spell_level is None or selected_spell_level not in _spell_level_options():
+        selected_spell_level = 0
+
+    spell_search = request.args.get('spell_q', '').strip()
+    catalog_query = _spell_catalog_query(current_user.id)
+    catalog_query = catalog_query.filter(Spell.level == selected_spell_level)
+    if spell_search:
+        catalog_query = catalog_query.filter(Spell.name.ilike(f'%{spell_search}%'))
+
+    available_spells = (catalog_query
+                        .order_by(Spell.name.asc())
+                        .limit(300)
+                        .all())
+
+    character_spell_links = (CharacterSpell.query
+                             .join(Spell, CharacterSpell.spell_id == Spell.id)
+                             .filter(CharacterSpell.character_id == active_character.id)
+                             .order_by(Spell.level.asc(), Spell.name.asc())
+                             .all())
     
     # Get user's friends (both directions)
     sent_friendships = Friendship.query.filter_by(
@@ -144,7 +193,15 @@ def index():
                            active_character=active_character,
                            sounds=sounds,
                            pending_requests=pending_requests,
-                           friends=friends)
+                           friends=friends,
+                           available_spells=available_spells,
+                           character_spell_links=character_spell_links,
+                           spell_level_options=_spell_level_options(),
+                           selected_spell_level=selected_spell_level,
+                           selected_spell_level_label=_spell_level_label(selected_spell_level),
+                           spell_search=spell_search,
+                           spell_count=Spell.query.filter_by(source_type='srd').count(),
+                           spell_level_label=_spell_level_label)
 
 
 @soundboard_bp.route('/characters', methods=['POST'])
@@ -167,6 +224,112 @@ def create_character():
 
     flash(f'Character "{name}" created.', 'success')
     return redirect(url_for('soundboard.index', character_id=character.id))
+
+
+@soundboard_bp.route('/spells/sync', methods=['POST'])
+@login_required
+def sync_spells():
+    redirect_character_id = request.form.get('character_id', type=int)
+    try:
+        result = sync_open5e_srd_spells()
+    except Exception as exc:
+        flash(f'Could not sync SRD spells right now: {exc}', 'error')
+        return redirect(url_for('soundboard.index', character_id=redirect_character_id))
+
+    flash(f"SRD sync complete: {result['inserted']} added, {result['updated']} updated.", 'success')
+    return redirect(url_for('soundboard.index', character_id=redirect_character_id))
+
+
+@soundboard_bp.route('/spells/add', methods=['POST'])
+@login_required
+def add_spell_to_character():
+    character = _posted_character()
+    spell_id = request.form.get('spell_id', type=int)
+    if not spell_id:
+        flash('Choose a spell first.', 'error')
+        return redirect(url_for('soundboard.index', character_id=character.id))
+
+    spell = db.session.get(Spell, spell_id)
+    if not spell:
+        flash('That spell could not be found.', 'error')
+        return redirect(url_for('soundboard.index', character_id=character.id))
+
+    if spell.source_type != 'srd' and spell.created_by_user_id != current_user.id:
+        abort(403)
+
+    existing_link = CharacterSpell.query.filter_by(character_id=character.id, spell_id=spell.id).first()
+    if existing_link:
+        flash(f'{spell.name} is already on {character.name}.', 'info')
+        return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
+
+    db.session.add(CharacterSpell(character_id=character.id, spell_id=spell.id))
+    db.session.commit()
+    flash(f'{spell.name} added to {character.name}.', 'success')
+    return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
+
+
+@soundboard_bp.route('/spells/remove/<int:link_id>', methods=['POST'])
+@login_required
+def remove_spell_from_character(link_id):
+    link = db.session.get(CharacterSpell, link_id)
+    if not link or link.character.user_id != current_user.id:
+        abort(403)
+
+    character_id = link.character_id
+    spell_name = link.spell.name
+    spell_level = link.spell.level
+    db.session.delete(link)
+    db.session.commit()
+    flash(f'{spell_name} removed from character spellbook.', 'success')
+    return redirect(url_for('soundboard.index', character_id=character_id, spell_level=spell_level))
+
+
+@soundboard_bp.route('/spells/custom', methods=['POST'])
+@login_required
+def create_custom_spell():
+    character = _posted_character()
+
+    name = request.form.get('custom_name', '').strip()
+    level = request.form.get('custom_level', type=int)
+    description = request.form.get('custom_description', '').strip()
+    school = request.form.get('custom_school', '').strip() or None
+    casting_time = request.form.get('custom_casting_time', '').strip() or None
+    spell_range = request.form.get('custom_range', '').strip() or None
+    components = request.form.get('custom_components', '').strip() or None
+    material_description = request.form.get('custom_material_description', '').strip() or None
+    duration = request.form.get('custom_duration', '').strip() or None
+
+    if len(name) < 2 or len(name) > 120:
+        flash('Custom spell name must be between 2 and 120 characters.', 'error')
+        return redirect(url_for('soundboard.index', character_id=character.id))
+    if level is None or level not in _spell_level_options():
+        flash('Custom spell level must be between 0 and 9.', 'error')
+        return redirect(url_for('soundboard.index', character_id=character.id))
+    if len(description) < 10:
+        flash('Please provide a longer custom spell description.', 'error')
+        return redirect(url_for('soundboard.index', character_id=character.id, spell_level=level))
+
+    spell = Spell(
+        name=name,
+        level=level,
+        school=school,
+        casting_time=casting_time,
+        spell_range=spell_range,
+        components=components,
+        material_description=material_description,
+        duration=duration,
+        description=description,
+        source_type='custom',
+        source_name='User Custom',
+        created_by_user_id=current_user.id,
+    )
+    db.session.add(spell)
+    db.session.flush()
+
+    db.session.add(CharacterSpell(character_id=character.id, spell_id=spell.id))
+    db.session.commit()
+    flash(f'Custom spell "{spell.name}" created and added to {character.name}.', 'success')
+    return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
 
 
 @soundboard_bp.route('/import-account', methods=['POST'])
