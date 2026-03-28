@@ -19,9 +19,10 @@
         </div>
         <div class="form-group">
             <label for="role">Role</label>
-            <select id="role" name="role" onchange="toggleDmSecret(this.value)">
+            <select id="role" name="role" onchange="toggleRoleSecrets(this.value)">
                 <option value="player">Player</option>
                 <option value="dm">Dungeon Master (DM)</option>
+                <option value="developer">Developer</option>
             </select>
         </div>
         <div class="form-group" id="dm-secret-group" style="display:none;">
@@ -29,14 +30,22 @@
             <input type="password" id="dm_secret" name="dm_secret">
             <small>Required to register as a DM.</small>
         </div>
+        <div class="form-group" id="dev-secret-group" style="display:none;">
+            <label for="dev_secret">Developer Secret Passphrase</label>
+            <input type="password" id="dev_secret" name="dev_secret">
+            <small>Required to register as a developer.</small>
+        </div>
         <button type="submit" class="btn">Create Account</button>
     </form>
     <p class="form-footer">Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
 </div>
 
 <script>
-function toggleDmSecret(role) {
+function toggleRoleSecrets(role) {
     document.getElementById('dm-secret-group').style.display = role === 'dm' ? 'block' : 'none';
+    document.getElementById('dev-secret-group').style.display = role === 'developer' ? 'block' : 'none';
 }
+
+toggleRoleSecrets(document.getElementById('role').value);
 </script>
 {% endblock %}

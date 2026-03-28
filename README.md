@@ -25,6 +25,7 @@ Edit `app.py` to change these settings before deploying:
 |---|---|---|
 | `SECRET_KEY` | `change-me-...` | **Change this** to a random string for security |
 | `DM_SECRET` | `dungeon-master` | Passphrase required to register as a DM. Set to `None` to disable. |
+| `DEV_SECRET` | `developer-mode` | Passphrase required to register as a Developer. Set to `None` to disable. |
 | `SOUNDBOARD_UPLOAD_ROOT` | `uploads/soundboard/` | Directory where audio files are stored on disk |
 | `MAX_CONTENT_LENGTH` | `10 MB` | Maximum audio file size per upload request |
 
@@ -34,8 +35,18 @@ Edit `app.py` to change these settings before deploying:
 |---|---|
 | **Player** | Login, dashboard, soundboard |
 | **DM** | Login, dashboard, DM Panel, soundboard |
+| **Developer** | Login, dashboard, suggestions inbox, soundboard |
 
 Registering with the DM role requires the DM secret passphrase set in `app.py`.
+Registering with the Developer role requires the developer secret passphrase set in `app.py`.
+
+### Suggestions
+Authenticated users can submit feature suggestions from the Suggestions page. Suggestions are automatically assigned to a developer user when one exists.
+
+Developer users can open the suggestions inbox to:
+- View all submitted suggestions
+- See who submitted each suggestion
+- Update suggestion status (`NEW`, `REVIEWING`, `PLANNED`, `DONE`)
 
 ## Features
 

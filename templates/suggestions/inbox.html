@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Developer Suggestions — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Developer Suggestions Inbox</h1>
+    <p>Review and triage suggestions submitted by users.</p>
+
+    {% if suggestions %}
+        <div class="suggestion-list">
+            {% for item in suggestions %}
+                <div class="suggestion-row">
+                    <div class="suggestion-main">
+                        <strong>{{ item.title }}</strong>
+                        <p>{{ item.details }}</p>
+                        <small>
+                            From: {{ item.submitted_by.username }}
+                            · Assigned:
+                            {% if item.assigned_dev %}
+                                {{ item.assigned_dev.username }}
+                            {% else %}
+                                unassigned
+                            {% endif %}
+                            · {{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                        </small>
+                    </div>
+                    <form method="POST" action="{{ url_for('suggestions.update_status', suggestion_id=item.id) }}" class="suggestion-status-form">
+                        <label for="status-{{ item.id }}">Status</label>
+                        <select id="status-{{ item.id }}" name="status">
+                            <option value="new" {% if item.status == 'new' %}selected{% endif %}>New</option>
+                            <option value="reviewing" {% if item.status == 'reviewing' %}selected{% endif %}>Reviewing</option>
+                            <option value="planned" {% if item.status == 'planned' %}selected{% endif %}>Planned</option>
+                            <option value="done" {% if item.status == 'done' %}selected{% endif %}>Done</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm">Update</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="sb-empty">No suggestions yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

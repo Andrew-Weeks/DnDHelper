@@ -13,6 +13,7 @@ def register():
         confirm  = request.form.get('confirm_password', '')
         role     = request.form.get('role', 'player')
         dm_secret = request.form.get('dm_secret', '')
+        dev_secret = request.form.get('dev_secret', '')
 
         # Validation
         if len(username) < 3 or len(username) > 80:
@@ -27,13 +28,19 @@ def register():
             flash('Passwords do not match.', 'error')
             return render_template('auth/register.html')
 
-        if role not in ('player', 'dm'):
+        if role not in ('player', 'dm', 'developer'):
             role = 'player'
 
         if role == 'dm':
             required_secret = current_app.config.get('DM_SECRET')
             if required_secret and dm_secret != required_secret:
                 flash('Invalid DM secret passphrase.', 'error')
+                return render_template('auth/register.html')
+
+        if role == 'developer':
+            required_secret = current_app.config.get('DEV_SECRET')
+            if required_secret and dev_secret != required_secret:
+                flash('Invalid developer secret passphrase.', 'error')
                 return render_template('auth/register.html')
 
         if User.query.filter_by(username=username).first():

@@ -147,6 +147,28 @@ def _align_segments(diarization_segments, whisper_result):
     return aligned
 
 
+def _normalize_speaker_labels(diarization_segments):
+    """
+    Renumber speaker labels by first appearance time for stable UI labeling.
+
+    Example: arbitrary model labels like SPEAKER_03/SPEAKER_00 become
+    SPEAKER_00/SPEAKER_01 in timeline order.
+    """
+    # Ensure deterministic order even if upstream iterator order changes.
+    ordered = sorted(diarization_segments, key=lambda item: (item[0], item[1], item[2]))
+    label_map = {}
+    next_index = 0
+
+    normalized = []
+    for start, end, label in ordered:
+        if label not in label_map:
+            label_map[label] = f'SPEAKER_{next_index:02d}'
+            next_index += 1
+        normalized.append((start, end, label_map[label]))
+
+    return normalized
+
+
 def process_session(app, session_id):
     """
     Main pipeline entry point. Called in a background thread.
@@ -154,7 +176,7 @@ def process_session(app, session_id):
     persists TranscriptSegment rows, and updates Session.status.
     """
     with app.app_context():
-        from models import db, Session, TranscriptSegment
+        from models import db, Session, TranscriptSegment, CampaignMember
 
         sess = db.session.get(Session, session_id)
         if not sess:
@@ -197,13 +219,36 @@ def process_session(app, session_id):
             audio_input = {'waveform': _waveform, 'sample_rate': _sr}
 
             pipeline = _get_diarization_pipeline(hf_token)
-            diarization = pipeline(audio_input)
+
+            # Hint diarization with expected campaign speaker count to reduce
+            # under-clustering (multiple people grouped into one label).
+            diarization_kwargs = {}
+            use_campaign_hint = bool(current_app.config.get('DIARIZATION_USE_CAMPAIGN_HINT', True))
+            if use_campaign_hint:
+                expected_speakers = 1 + CampaignMember.query.filter_by(campaign_id=sess.campaign_id).count()
+                speaker_slack = max(0, int(current_app.config.get('DIARIZATION_SPEAKER_SLACK', 1)))
+                speaker_cap = max(1, int(current_app.config.get('DIARIZATION_MAX_SPEAKERS_CAP', 10)))
+
+                max_speakers = min(expected_speakers, speaker_cap)
+                min_speakers = max(1, min(max_speakers, expected_speakers - speaker_slack))
+
+                if min_speakers <= max_speakers and max_speakers > 1:
+                    diarization_kwargs['min_speakers'] = min_speakers
+                    diarization_kwargs['max_speakers'] = max_speakers
+
+            try:
+                diarization = pipeline(audio_input, **diarization_kwargs) if diarization_kwargs else pipeline(audio_input)
+            except TypeError:
+                # Older/newer pipeline signatures may reject kwargs; fall back.
+                diarization = pipeline(audio_input)
 
             diarization_segments = []
             # pyannote.audio 4.x returns DiarizeOutput; the Annotation is in .speaker_diarization
             annotation = diarization.speaker_diarization if hasattr(diarization, 'speaker_diarization') else diarization
             for turn, _, speaker in annotation.itertracks(yield_label=True):
                 diarization_segments.append((turn.start, turn.end, speaker))
+
+            diarization_segments = _normalize_speaker_labels(diarization_segments)
 
             # Step 3: Whisper transcription with word timestamps
             # Step 3: Whisper transcription with word timestamps

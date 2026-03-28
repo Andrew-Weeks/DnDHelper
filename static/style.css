@@ -203,6 +203,7 @@ main {
 
 .form-group input[type="text"],
 .form-group input[type="password"],
+.form-group textarea,
 .form-group select {
     width: 100%;
     padding: 0.5rem 0.75rem;
@@ -215,9 +216,15 @@ main {
 }
 
 .form-group input:focus,
+.form-group textarea:focus,
 .form-group select:focus {
     outline: none;
     border-color: #d4a017;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
 }
 
 .form-check {
@@ -518,6 +525,11 @@ input[type="file"] {
     color: #e0a040;
 }
 
+.role-developer {
+    background: #3b005c;
+    color: #d7a0ff;
+}
+
 /* =====================================================================
    Campaign & Session styles
    ===================================================================== */
@@ -680,3 +692,58 @@ input[type="file"] {
     color: #c8b89a;
     font-size: 1rem;
 }
+
+/* Suggestions */
+.suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 0.75rem;
+}
+
+.suggestion-row {
+    background: #0f3460;
+    border: 1px solid #2a3a5a;
+    border-radius: 6px;
+    padding: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.suggestion-main p {
+    margin: 0.35rem 0;
+}
+
+.suggestion-main small {
+    color: #aaa;
+}
+
+.suggestion-status-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 150px;
+}
+
+.suggestion-status-form label {
+    color: #c8b89a;
+    font-size: 0.85rem;
+}
+
+.suggestion-status-form select {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+}
+
+.status-new        { background: #1a3a5c; color: #7ab3e0; }
+.status-reviewing  { background: #3a3000; color: #d4a017; }
+.status-planned    { background: #2a355f; color: #9fb8ff; }
+.status-done       { background: #1a4a2e; color: #7dd9a0; }

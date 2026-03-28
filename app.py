@@ -11,6 +11,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dndhelper.db'
 # Set to None to allow anyone to register as DM.
 app.config['DM_SECRET'] = 'dungeon-master'
 
+# Optional: require this passphrase when registering as a Developer.
+# Set to None to allow anyone to register as Developer.
+app.config['DEV_SECRET'] = 'developer-mode'
+
 # Soundboard uploads: stored in <project_root>/uploads/soundboard/characters/<character_id>/
 app.config['SOUNDBOARD_UPLOAD_ROOT'] = os.path.join(app.root_path, 'uploads', 'soundboard')
 app.config['SESSION_UPLOAD_ROOT']    = os.path.join(app.root_path, 'uploads', 'sessions')
@@ -20,6 +24,9 @@ app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB (session recordin
 # Transcription settings — set via environment variables before running
 app.config['WHISPER_MODEL_SIZE'] = os.environ.get('WHISPER_MODEL_SIZE', 'base')
 app.config['HF_AUTH_TOKEN']      = os.environ.get('HF_AUTH_TOKEN', '')
+app.config['DIARIZATION_USE_CAMPAIGN_HINT'] = os.environ.get('DIARIZATION_USE_CAMPAIGN_HINT', '1').lower() in ('1', 'true', 'yes', 'on')
+app.config['DIARIZATION_SPEAKER_SLACK'] = int(os.environ.get('DIARIZATION_SPEAKER_SLACK', '1'))
+app.config['DIARIZATION_MAX_SPEAKERS_CAP'] = int(os.environ.get('DIARIZATION_MAX_SPEAKERS_CAP', '10'))
 
 db.init_app(app)
 
@@ -43,12 +50,14 @@ from main import main_bp
 from soundboard import soundboard_bp
 from campaign import campaign_bp
 from friends import friends_bp
+from suggestions import suggestions_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(soundboard_bp)
 app.register_blueprint(campaign_bp)
 app.register_blueprint(friends_bp)
+app.register_blueprint(suggestions_bp)
 
 with app.app_context():
     db.create_all()

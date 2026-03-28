@@ -14,7 +14,7 @@ class User(UserMixin, db.Model):
     username      = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role          = db.Column(db.String(20), nullable=False, default='player')
-    # role values: 'player', 'dm'
+    # role values: 'player', 'dm', 'developer'
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -24,6 +24,9 @@ class User(UserMixin, db.Model):
 
     def is_dm(self):
         return self.role == 'dm'
+
+    def is_developer(self):
+        return self.role == 'developer'
 
 
 class Character(db.Model):
@@ -174,6 +177,27 @@ class VoiceSample(db.Model):
     created_at  = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref=db.backref('voice_samples', lazy=True))
+
+
+class Suggestion(db.Model):
+    __tablename__ = 'suggestion'
+
+    id                  = db.Column(db.Integer, primary_key=True)
+    submitted_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_dev_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    title               = db.Column(db.String(120), nullable=False)
+    details             = db.Column(db.Text, nullable=False)
+    status              = db.Column(db.String(20), nullable=False, default='new')
+    # status values: 'new', 'reviewing', 'planned', 'done'
+    created_at          = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at          = db.Column(db.DateTime, nullable=False,
+                                    default=lambda: datetime.now(timezone.utc),
+                                    onupdate=lambda: datetime.now(timezone.utc))
+
+    submitted_by = db.relationship('User', foreign_keys=[submitted_by_user_id],
+                                   backref=db.backref('suggestions_submitted', lazy=True))
+    assigned_dev = db.relationship('User', foreign_keys=[assigned_dev_user_id],
+                                   backref=db.backref('suggestions_assigned', lazy=True))
 
 
 def _unique_character_name(user_id, base_name):

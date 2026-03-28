@@ -11,6 +11,12 @@
         <p><a href="{{ url_for('main.dm_dashboard') }}" class="btn">Open DM Panel</a></p>
     {% endif %}
 
+    <p><a href="{{ url_for('suggestions.index') }}" class="btn btn-secondary">Submit a Suggestion</a></p>
+
+    {% if current_user.is_developer() %}
+        <p><a href="{{ url_for('suggestions.inbox') }}" class="btn">Open Developer Suggestions Inbox</a></p>
+    {% endif %}
+
     <p><em>Player features coming soon...</em></p>
 </div>
 {% endblock %}
