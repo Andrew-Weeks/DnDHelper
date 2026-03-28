@@ -287,6 +287,33 @@ main {
     font-size: 1.15rem;
 }
 
+.sb-character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.sb-character-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 6px;
+}
+
+.sb-character-form label {
+    color: #c8b89a;
+    font-size: 0.9rem;
+}
+
+.sb-character-copy {
+    color: #9ba8bf;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 /* Record controls */
 .record-controls {
     display: flex;
@@ -463,6 +490,12 @@ input[type="file"] {
 
 .hidden {
     display: none !important;
+}
+
+@media (max-width: 720px) {
+    .sb-character-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Role badges */

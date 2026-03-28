@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template
 from flask_login import LoginManager
-from models import db, User
+from models import db, User, ensure_schema_upgrades, ensure_default_characters_and_migrate_soundboards
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'change-me-to-a-random-secret-before-deploying'
@@ -11,7 +11,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dndhelper.db'
 # Set to None to allow anyone to register as DM.
 app.config['DM_SECRET'] = 'dungeon-master'
 
-# Soundboard uploads: stored in <project_root>/uploads/soundboard/<user_id>/
+# Soundboard uploads: stored in <project_root>/uploads/soundboard/characters/<character_id>/
 app.config['SOUNDBOARD_UPLOAD_ROOT'] = os.path.join(app.root_path, 'uploads', 'soundboard')
 app.config['SESSION_UPLOAD_ROOT']    = os.path.join(app.root_path, 'uploads', 'sessions')
 app.config['VOICE_SAMPLE_ROOT']      = os.path.join(app.root_path, 'uploads', 'voice_samples')
@@ -52,6 +52,8 @@ app.register_blueprint(friends_bp)
 
 with app.app_context():
     db.create_all()
+    ensure_schema_upgrades()
+    ensure_default_characters_and_migrate_soundboards(app.config['SOUNDBOARD_UPLOAD_ROOT'])
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))

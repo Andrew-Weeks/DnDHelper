@@ -1,5 +1,8 @@
+import os
+import shutil
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
@@ -23,14 +26,29 @@ class User(UserMixin, db.Model):
         return self.role == 'dm'
 
 
+class Character(db.Model):
+    __tablename__ = 'character'
+    __table_args__ = (db.UniqueConstraint('user_id', 'name'),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name       = db.Column(db.String(80), nullable=False)
+    is_default = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('characters', lazy=True, cascade='all, delete-orphan'))
+
+
 class SoundboardItem(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=True)
     name       = db.Column(db.String(120), nullable=False)
     filename   = db.Column(db.String(256), nullable=False)  # on-disk filename
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref=db.backref('soundboard_items', lazy=True))
+    character = db.relationship('Character', backref=db.backref('soundboard_items', lazy=True))
 
 
 class ShareRequest(db.Model):
@@ -156,3 +174,79 @@ class VoiceSample(db.Model):
     created_at  = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref=db.backref('voice_samples', lazy=True))
+
+
+def _unique_character_name(user_id, base_name):
+    name = (base_name or 'Character').strip()[:80] or 'Character'
+    if not Character.query.filter_by(user_id=user_id, name=name).first():
+        return name
+
+    suffix = 2
+    while True:
+        candidate = f'{name[:73]} ({suffix})'
+        if not Character.query.filter_by(user_id=user_id, name=candidate).first():
+            return candidate
+        suffix += 1
+
+
+def get_or_create_default_character(user):
+    character = (Character.query
+                 .filter_by(user_id=user.id, is_default=True)
+                 .order_by(Character.id.asc())
+                 .first())
+    if character:
+        return character
+
+    character = Character(
+        user_id=user.id,
+        name=_unique_character_name(user.id, user.username),
+        is_default=True,
+    )
+    db.session.add(character)
+    db.session.flush()
+    return character
+
+
+def ensure_schema_upgrades():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if 'character' not in table_names:
+        Character.__table__.create(bind=db.engine)
+
+    soundboard_columns = {col['name'] for col in inspect(db.engine).get_columns('soundboard_item')}
+    if 'character_id' not in soundboard_columns:
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE soundboard_item ADD COLUMN character_id INTEGER'))
+
+
+def ensure_default_characters_and_migrate_soundboards(soundboard_root):
+    characters_root = os.path.join(soundboard_root, 'characters')
+    os.makedirs(characters_root, exist_ok=True)
+
+    changed = False
+    users = User.query.order_by(User.id.asc()).all()
+    for user in users:
+        default_character = get_or_create_default_character(user)
+        changed = True
+
+        legacy_dir = os.path.join(soundboard_root, str(user.id))
+        character_dir = os.path.join(characters_root, str(default_character.id))
+        os.makedirs(character_dir, exist_ok=True)
+
+        legacy_items = (SoundboardItem.query
+                        .filter_by(user_id=user.id, character_id=None)
+                        .order_by(SoundboardItem.id.asc())
+                        .all())
+
+        for item in legacy_items:
+            item.character_id = default_character.id
+            changed = True
+
+            legacy_path = os.path.join(legacy_dir, item.filename)
+            character_path = os.path.join(character_dir, item.filename)
+            if os.path.exists(legacy_path) and not os.path.exists(character_path):
+                shutil.move(legacy_path, character_path)
+
+    if changed:
+        db.session.commit()

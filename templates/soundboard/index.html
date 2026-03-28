@@ -4,6 +4,42 @@
 {% block content %}
 <div class="soundboard-page">
 
+  <div class="card sb-section">
+    <h2>Character Soundboards</h2>
+    <div class="sb-character-grid">
+      <form method="GET" action="{{ url_for('soundboard.index') }}" class="sb-character-form">
+        <label for="characterSelect">Active character</label>
+        <select id="characterSelect" name="character_id" class="sb-inline-input" onchange="this.form.submit()">
+          {% for character in characters %}
+          <option value="{{ character.id }}" {% if character.id == active_character.id %}selected{% endif %}>
+            {{ character.name }}{% if character.is_default %} (default){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="sb-character-copy">Sounds you record, upload, or accept are saved into the currently selected character.</p>
+      </form>
+
+      <form method="POST" action="{{ url_for('soundboard.create_character') }}" class="sb-character-form">
+        <label for="newCharacterName">Add a character</label>
+        <input id="newCharacterName" type="text" name="character_name" maxlength="80"
+               placeholder="e.g. Sir Rowan" class="sb-inline-input" required>
+        <button type="submit" class="btn btn-sm">Create Character</button>
+      </form>
+
+      <form method="POST" action="{{ url_for('soundboard.import_legacy_account') }}" class="sb-character-form">
+        <label for="legacyUsername">Import another account</label>
+        <input id="legacyUsername" type="text" name="legacy_username" maxlength="80"
+               placeholder="Old account username" class="sb-inline-input" required>
+        <input type="password" name="legacy_password" placeholder="Old account password"
+               class="sb-inline-input" required>
+        <input type="text" name="character_name" maxlength="80"
+               placeholder="Character name on this account" class="sb-inline-input">
+        <p class="sb-character-copy">This copies the other account's sounds into a new character here. The old account stays intact.</p>
+        <button type="submit" class="btn btn-sm">Import Character Board</button>
+      </form>
+    </div>
+  </div>
+
   <!-- ===== RECORD SECTION ===== -->
   <div class="card sb-section">
     <h2>Record a New Sound</h2>
@@ -17,6 +53,7 @@
     <form id="saveRecordingForm" method="POST"
           action="{{ url_for('soundboard.save_recording') }}"
           enctype="multipart/form-data" class="hidden">
+      <input type="hidden" name="character_id" value="{{ active_character.id }}">
       <input type="hidden" name="audio_blob" id="audioBlobInput">
       <div class="form-group" style="margin-top:0.75rem;">
         <label for="recordingName">Name this recording</label>
@@ -32,6 +69,7 @@
     <h2>Upload Audio File(s)</h2>
     <form method="POST" action="{{ url_for('soundboard.upload') }}"
           enctype="multipart/form-data" id="uploadForm">
+      <input type="hidden" name="character_id" value="{{ active_character.id }}">
       <div class="form-group">
         <label for="audioFiles">Choose file(s) — mp3, wav, ogg, webm, m4a, aac · max 10 MB each</label>
         <input type="file" id="audioFiles" name="audio_files"
@@ -54,9 +92,11 @@
       </span>
       <div class="share-request-actions">
         <form method="POST" action="{{ url_for('soundboard.accept_share', req_id=req.id) }}" style="display:inline;">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
           <button type="submit" class="btn btn-sm">Accept</button>
         </form>
         <form method="POST" action="{{ url_for('soundboard.decline_share', req_id=req.id) }}" style="display:inline;">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
           <button type="submit" class="btn btn-sm btn-secondary">Decline</button>
         </form>
       </div>
@@ -67,7 +107,8 @@
 
   <!-- ===== SOUNDBOARD GRID ===== -->
   <div class="card sb-section">
-    <h2>Your Soundboard</h2>
+    <h2>{{ active_character.name }}'s Soundboard</h2>
+    <p class="sb-character-copy">Managing sounds for {{ active_character.name }}.</p>
     {% if sounds %}
     <div class="sb-grid">
       {% for sound in sounds %}
@@ -110,6 +151,7 @@
                 action="{{ url_for('soundboard.delete', item_id=sound.id) }}"
                 onsubmit="return confirm('Delete &quot;{{ sound.name }}&quot;? This cannot be undone.');"
                 style="display:inline;">
+            <input type="hidden" name="character_id" value="{{ active_character.id }}">
             <button type="submit" class="sb-action-btn sb-delete-btn" title="Delete">&#128465;</button>
           </form>
         </div>
@@ -118,6 +160,7 @@
         <form method="POST"
               action="{{ url_for('soundboard.rename', item_id=sound.id) }}"
               class="sb-inline-form hidden" id="renameform-{{ sound.id }}">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
           <input type="text" name="name" value="{{ sound.name }}"
                  maxlength="120" required class="sb-inline-input">
           <button type="submit" class="btn btn-sm">Save</button>
@@ -130,6 +173,7 @@
               action="{{ url_for('soundboard.share') }}"
               class="sb-inline-form hidden" id="shareform-{{ sound.id }}">
           <input type="hidden" name="item_id" value="{{ sound.id }}">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
           <div style="margin-bottom: 0.5rem;">
             {% if friends %}
             <div style="margin-bottom: 0.5rem;">

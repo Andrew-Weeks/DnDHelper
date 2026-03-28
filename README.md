@@ -40,17 +40,19 @@ Registering with the DM role requires the DM secret passphrase set in `app.py`.
 ## Features
 
 ### Soundboard
-Each user has a personal soundboard — persistent across sessions and devices as long as they are logged in.
+Each account can manage multiple character soundboards. Existing users are automatically migrated so their current sounds stay available under a default character.
 
-- **Record** — capture audio directly in the browser (uses the microphone), preview the recording, then save it with a custom name
-- **Upload** — upload one or more audio files (mp3, wav, ogg, webm, m4a, aac · max 10 MB each); name each clip individually
+- **Characters** — create multiple characters under one login and switch between their boards from the soundboard page
+- **Record** — capture audio directly in the browser (uses the microphone), preview the recording, then save it to the active character board with a custom name
+- **Upload** — upload one or more audio files (mp3, wav, ogg, webm, m4a, aac · max 10 MB each); name each clip individually and save them to the active character board
 - **Play / Stop** — click any soundboard button to play; clicking again or playing a different sound stops it
 - **Rename** — edit a sound's display name in place
 - **Download** — download the raw audio file for further editing
 - **Delete** — permanently removes the sound from your board and disk
 - **Share** — send a sound to another user by their username; the recipient gets a request they can accept or decline. Accepted sounds are copied independently to their soundboard
+- **Legacy import** — copy sounds from an older account into a new character on your current account by entering that old account's credentials
 
-Audio files are stored in `uploads/soundboard/<user_id>/` on the server.
+Audio files are stored in `uploads/soundboard/characters/<character_id>/` on the server.
 
 ### Session Transcription Prerequisites
 If you use session transcription (Whisper + speaker diarization), you need both Python packages and system audio tools.

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_user, logout_user, login_required
-from models import db, User
+from models import db, User, get_or_create_default_character
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -43,6 +43,8 @@ def register():
         user = User(username=username, role=role)
         user.set_password(password)
         db.session.add(user)
+        db.session.flush()
+        get_or_create_default_character(user)
         db.session.commit()
 
         flash('Account created! Please log in.', 'success')
