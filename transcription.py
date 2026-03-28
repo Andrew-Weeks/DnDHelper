@@ -9,11 +9,54 @@ Requires:
 """
 
 import os
+import shutil
+import subprocess
 import traceback
 
 # Lazy-loaded models — loaded once on first use and reused
 _whisper_model = None
 _diarization_pipeline = None
+
+
+def _find_first_file(root_dir, filename):
+    """Return first matching filename under root_dir, or None."""
+    if not root_dir or not os.path.isdir(root_dir):
+        return None
+
+    for current_root, _, files in os.walk(root_dir):
+        if filename in files:
+            return os.path.join(current_root, filename)
+    return None
+
+
+def _resolve_ffmpeg_tools():
+    """Resolve ffmpeg/ffprobe executable paths from PATH or common Windows locations."""
+    ffmpeg_path = shutil.which('ffmpeg')
+    ffprobe_path = shutil.which('ffprobe')
+
+    if ffmpeg_path and ffprobe_path:
+        return ffmpeg_path, ffprobe_path
+
+    # Windows fallback for winget installs when PATH hasn't refreshed in this process.
+    if os.name == 'nt':
+        local_app_data = os.environ.get('LOCALAPPDATA', '')
+        winget_links = os.path.join(local_app_data, 'Microsoft', 'WinGet', 'Links')
+        winget_packages = os.path.join(local_app_data, 'Microsoft', 'WinGet', 'Packages')
+
+        if not ffmpeg_path:
+            ffmpeg_path = os.path.join(winget_links, 'ffmpeg.exe')
+            if not os.path.isfile(ffmpeg_path):
+                ffmpeg_path = _find_first_file(winget_packages, 'ffmpeg.exe')
+
+        if not ffprobe_path:
+            ffprobe_path = os.path.join(winget_links, 'ffprobe.exe')
+            if not os.path.isfile(ffprobe_path):
+                ffprobe_path = _find_first_file(winget_packages, 'ffprobe.exe')
+
+    if ffmpeg_path and ffprobe_path and os.path.isfile(ffmpeg_path) and os.path.isfile(ffprobe_path):
+        return ffmpeg_path, ffprobe_path
+
+    return None, None
 
 
 def _get_whisper_model(model_size):
@@ -30,17 +73,40 @@ def _get_diarization_pipeline(hf_token):
         from pyannote.audio import Pipeline
         _diarization_pipeline = Pipeline.from_pretrained(
             'pyannote/speaker-diarization-3.1',
-            use_auth_token=hf_token
+            token=hf_token
         )
     return _diarization_pipeline
 
 
 def _convert_to_wav(input_path, output_path):
-    """Convert audio file to 16kHz mono WAV using pydub."""
-    from pydub import AudioSegment
-    audio = AudioSegment.from_file(input_path)
-    audio = audio.set_frame_rate(16000).set_channels(1)
-    audio.export(output_path, format='wav')
+    """Convert audio file to 16kHz mono WAV using ffmpeg."""
+    ffmpeg_path, _ffprobe_path = _resolve_ffmpeg_tools()
+    if not ffmpeg_path:
+        raise RuntimeError(
+            'Missing ffmpeg on PATH. Install ffmpeg '
+            'and restart the app. On Windows: "winget install Gyan.FFmpeg".'
+        )
+
+    command = [
+        ffmpeg_path,
+        '-y',
+        '-i', input_path,
+        '-ac', '1',
+        '-ar', '16000',
+        output_path,
+    ]
+
+    try:
+        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            'Audio conversion failed because ffmpeg was not found. '
+            'Install ffmpeg and restart the app.'
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or b'').decode('utf-8', errors='replace').strip()
+        short_err = stderr[-1200:] if stderr else 'Unknown ffmpeg error.'
+        raise RuntimeError(f'Audio conversion failed: {short_err}') from exc
 
 
 def _align_segments(diarization_segments, whisper_result):
@@ -111,16 +177,40 @@ def process_session(app, session_id):
             _convert_to_wav(audio_path, wav_path)
 
             # Step 2: Speaker diarization
+            # Pre-load the WAV with scipy to bypass torchaudio/torchcodec backend
+            # failures on Windows (torchcodec DLL load error).
+            import numpy as _np
+            import scipy.io.wavfile as _scipy_wav
+            import torch as _torch
+
+            _sr, _wav_data = _scipy_wav.read(wav_path)
+            if _wav_data.dtype == _np.int16:
+                _wf_np = _wav_data.astype(_np.float32) / 32768.0
+            elif _wav_data.dtype == _np.int32:
+                _wf_np = _wav_data.astype(_np.float32) / 2147483648.0
+            elif _wav_data.dtype == _np.uint8:
+                _wf_np = (_wav_data.astype(_np.float32) - 128.0) / 128.0
+            else:
+                _wf_np = _wav_data.astype(_np.float32)
+            # pyannote expects shape [channels, samples]
+            _waveform = _torch.from_numpy(_wf_np).unsqueeze(0)
+            audio_input = {'waveform': _waveform, 'sample_rate': _sr}
+
             pipeline = _get_diarization_pipeline(hf_token)
-            diarization = pipeline(wav_path)
+            diarization = pipeline(audio_input)
 
             diarization_segments = []
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
+            # pyannote.audio 4.x returns DiarizeOutput; the Annotation is in .speaker_diarization
+            annotation = diarization.speaker_diarization if hasattr(diarization, 'speaker_diarization') else diarization
+            for turn, _, speaker in annotation.itertracks(yield_label=True):
                 diarization_segments.append((turn.start, turn.end, speaker))
 
             # Step 3: Whisper transcription with word timestamps
+            # Step 3: Whisper transcription with word timestamps
+            # Pass a torch.Tensor so Whisper skips its internal ffmpeg load_audio call
+            # (ffmpeg may not be on PATH in the running process on Windows).
             model = _get_whisper_model(model_size)
-            result = model.transcribe(wav_path, word_timestamps=True)
+            result = model.transcribe(_torch.from_numpy(_wf_np), word_timestamps=True)
 
             # Step 4: Align
             aligned = _align_segments(diarization_segments, result)

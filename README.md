@@ -51,3 +51,11 @@ Each user has a personal soundboard — persistent across sessions and devices a
 - **Share** — send a sound to another user by their username; the recipient gets a request they can accept or decline. Accepted sounds are copied independently to their soundboard
 
 Audio files are stored in `uploads/soundboard/<user_id>/` on the server.
+
+### Session Transcription Prerequisites
+If you use session transcription (Whisper + speaker diarization), you need both Python packages and system audio tools.
+
+- Install Python dependencies: `pip install -r requirements.txt`
+- Install ffmpeg (includes ffprobe):
+	- Windows (winget): `winget install --id Gyan.FFmpeg -e`
+- After installing ffmpeg on Windows, restart your terminal (or VS Code) so PATH updates are picked up.
