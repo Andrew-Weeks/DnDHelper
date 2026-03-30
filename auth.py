@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_user, logout_user, login_required
-from models import db, User
+from models import db, User, get_or_create_default_character
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -13,6 +13,7 @@ def register():
         confirm  = request.form.get('confirm_password', '')
         role     = request.form.get('role', 'player')
         dm_secret = request.form.get('dm_secret', '')
+        dev_secret = request.form.get('dev_secret', '')
 
         # Validation
         if len(username) < 3 or len(username) > 80:
@@ -27,13 +28,19 @@ def register():
             flash('Passwords do not match.', 'error')
             return render_template('auth/register.html')
 
-        if role not in ('player', 'dm'):
+        if role not in ('player', 'dm', 'developer'):
             role = 'player'
 
         if role == 'dm':
             required_secret = current_app.config.get('DM_SECRET')
             if required_secret and dm_secret != required_secret:
                 flash('Invalid DM secret passphrase.', 'error')
+                return render_template('auth/register.html')
+
+        if role == 'developer':
+            required_secret = current_app.config.get('DEV_SECRET')
+            if required_secret and dev_secret != required_secret:
+                flash('Invalid developer secret passphrase.', 'error')
                 return render_template('auth/register.html')
 
         if User.query.filter_by(username=username).first():
@@ -43,6 +50,8 @@ def register():
         user = User(username=username, role=role)
         user.set_password(password)
         db.session.add(user)
+        db.session.flush()
+        get_or_create_default_character(user)
         db.session.commit()
 
         flash('Account created! Please log in.', 'success')

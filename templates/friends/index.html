@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Friends – DnD Helper{% endblock %}
+
+{% block content %}
+<div class="friends-page">
+  
+  <!-- ===== ADD FRIEND SECTION ===== -->
+  <div class="card friends-section">
+    <h2>Add a Friend</h2>
+    <form method="POST" action="{{ url_for('friends.add_friend') }}" class="form-inline">
+      <div class="form-group">
+        <input type="text" name="username" placeholder="Enter username" 
+               maxlength="80" required class="form-control">
+      </div>
+      <button type="submit" class="btn">Send Friend Request</button>
+    </form>
+  </div>
+
+  <!-- ===== PENDING REQUESTS SECTION ===== -->
+  {% if pending_requests %}
+  <div class="card friends-section">
+    <h2>Pending Friend Requests</h2>
+    <div class="requests-list">
+      {% for req in pending_requests %}
+      <div class="request-card">
+        <span><strong>{{ req.user.username }}</strong> wants to be your friend</span>
+        <div class="request-actions">
+          <form method="POST" 
+                action="{{ url_for('friends.accept_friend', req_id=req.id) }}" 
+                style="display:inline;">
+            <button type="submit" class="btn btn-sm">Accept</button>
+          </form>
+          <form method="POST" 
+                action="{{ url_for('friends.decline_friend', req_id=req.id) }}" 
+                style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-secondary">Decline</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ===== FRIENDS LIST SECTION ===== -->
+  <div class="card friends-section">
+    <h2>Your Friends</h2>
+    {% if friends %}
+    <div class="friends-list">
+      {% for friend in friends %}
+      <div class="friend-card">
+        <span class="friend-name">{{ friend.username }}</span>
+        <form method="POST" 
+              action="{{ url_for('friends.remove_friend', friend_id=friend.id) }}"
+              onsubmit="return confirm('Remove {{ friend.username }} from your friends?');"
+              style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-secondary">Remove</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="friends-empty">You have no friends yet. Add someone above!</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>
+  .friends-page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .friends-section {
+    margin-bottom: 2rem;
+  }
+
+  .form-inline {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .form-inline .form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .form-inline input {
+    width: 100%;
+  }
+
+  .requests-list,
+  .friends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .request-card,
+  .friend-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #0f3460;
+    border-radius: 4px;
+    border: 1px solid #4a4a6a;
+    border-left: 4px solid #8b4513;
+  }
+
+  .request-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .friends-empty {
+    color: #888;
+    font-style: italic;
+  }
+
+  .friend-name {
+    font-weight: 600;
+    color: #e0d7c6;
+  }
+</style>
+{% endblock %}

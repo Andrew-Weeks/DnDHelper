@@ -9,7 +9,18 @@
 <body>
     <nav>
         <a href="{{ url_for('main.index') }}" class="nav-brand">DnD Helper</a>
-        <div class="nav-links">
+        <button
+            type="button"
+            class="nav-toggle"
+            aria-expanded="false"
+            aria-controls="primary-navigation"
+            aria-label="Toggle navigation"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="nav-links" id="primary-navigation">
             {% if current_user.is_authenticated %}
                 <span class="nav-user">
                     {{ current_user.username }}
@@ -20,6 +31,9 @@
                 <a href="{{ url_for('campaign.campaign_list') }}">Campaigns</a>
                 {% if current_user.is_dm() %}
                     <a href="{{ url_for('main.dm_dashboard') }}">DM Panel</a>
+                {% endif %}
+                {% if current_user.is_developer() %}
+                    <a href="{{ url_for('suggestions.inbox') }}">Dev Suggestions</a>
                 {% endif %}
                 <a href="{{ url_for('auth.logout') }}">Logout</a>
             {% else %}
@@ -42,5 +56,24 @@
 
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+        const nav = document.querySelector('nav');
+        const navToggle = document.querySelector('.nav-toggle');
+
+        if (nav && navToggle) {
+            navToggle.addEventListener('click', () => {
+                const isOpen = nav.classList.toggle('nav-open');
+                navToggle.setAttribute('aria-expanded', String(isOpen));
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 720) {
+                    nav.classList.remove('nav-open');
+                    navToggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+    </script>
 </body>
 </html>

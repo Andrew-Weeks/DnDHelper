@@ -17,7 +17,9 @@ nav {
     padding: 0.75rem 2rem;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
+    gap: 1rem;
     border-bottom: 2px solid #8b4513;
 }
 
@@ -32,6 +34,38 @@ nav {
     display: flex;
     align-items: center;
     gap: 1.2rem;
+}
+
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.28rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0.6rem;
+    border: 1px solid #8b4513;
+    border-radius: 4px;
+    background: #0f3460;
+    cursor: pointer;
+}
+
+.nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: #e0d7c6;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nav-toggle:hover {
+    background: #16407a;
+}
+
+.nav-toggle:focus-visible {
+    outline: 2px solid #d4a017;
+    outline-offset: 2px;
 }
 
 .nav-links a {
@@ -49,6 +83,52 @@ nav {
     gap: 0.5rem;
     color: #aaa;
     font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+    nav {
+        padding: 0.75rem 1rem;
+        align-items: center;
+    }
+
+    .nav-toggle {
+        display: inline-flex;
+    }
+
+    .nav-links {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(212, 160, 23, 0.25);
+    }
+
+    nav.nav-open .nav-links {
+        display: flex;
+    }
+
+    .nav-user {
+        flex-wrap: wrap;
+    }
+
+    .nav-links a,
+    .nav-user {
+        width: 100%;
+    }
+
+    nav.nav-open .nav-toggle span:nth-child(1) {
+        transform: translateY(0.4rem) rotate(45deg);
+    }
+
+    nav.nav-open .nav-toggle span:nth-child(2) {
+        opacity: 0;
+    }
+
+    nav.nav-open .nav-toggle span:nth-child(3) {
+        transform: translateY(-0.4rem) rotate(-45deg);
+    }
 }
 
 /* Main content */
@@ -123,6 +203,7 @@ main {
 
 .form-group input[type="text"],
 .form-group input[type="password"],
+.form-group textarea,
 .form-group select {
     width: 100%;
     padding: 0.5rem 0.75rem;
@@ -135,9 +216,15 @@ main {
 }
 
 .form-group input:focus,
+.form-group textarea:focus,
 .form-group select:focus {
     outline: none;
     border-color: #d4a017;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
 }
 
 .form-check {
@@ -205,6 +292,33 @@ main {
     color: #d4a017;
     margin-bottom: 1rem;
     font-size: 1.15rem;
+}
+
+.sb-character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.sb-character-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 6px;
+}
+
+.sb-character-form label {
+    color: #c8b89a;
+    font-size: 0.9rem;
+}
+
+.sb-character-copy {
+    color: #9ba8bf;
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 /* Record controls */
@@ -381,8 +495,122 @@ input[type="file"] {
     font-size: 0.85rem;
 }
 
+.spell-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.spell-toolbar-copy {
+    color: #9ba8bf;
+    font-size: 0.9rem;
+}
+
+.spell-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: end;
+}
+
+.spell-filter-actions {
+    display: flex;
+    align-items: end;
+    padding-bottom: 0.1rem;
+}
+
+.spell-add-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.spellbook-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.spellbook-col {
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 6px;
+    padding: 0.85rem;
+}
+
+.spellbook-col h3 {
+    margin-bottom: 0.65rem;
+}
+
+.spell-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    max-height: 550px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.spell-item {
+    border: 1px solid #2a3a5a;
+    border-radius: 6px;
+    padding: 0.6rem;
+    background: #102f57;
+}
+
+.spell-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.spell-meta {
+    color: #9ba8bf;
+    font-size: 0.8rem;
+}
+
+.spell-fact-line {
+    color: #c8b89a;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.spell-desc {
+    margin-bottom: 0.5rem;
+    color: #e0d7c6;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.spell-custom-form .form-group {
+    margin-bottom: 0.65rem;
+}
+
 .hidden {
     display: none !important;
+}
+
+@media (max-width: 720px) {
+    .sb-character-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .spell-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .spellbook-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Role badges */
@@ -403,6 +631,10 @@ input[type="file"] {
 .role-dm {
     background: #5c2a00;
     color: #e0a040;
+}
+.role-developer {
+    background: #3b005c;
+    color: #d7a0ff;
 }
 
 /* =====================================================================
@@ -567,3 +799,58 @@ input[type="file"] {
     color: #c8b89a;
     font-size: 1rem;
 }
+
+/* Suggestions */
+.suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 0.75rem;
+}
+
+.suggestion-row {
+    background: #0f3460;
+    border: 1px solid #2a3a5a;
+    border-radius: 6px;
+    padding: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.suggestion-main p {
+    margin: 0.35rem 0;
+}
+
+.suggestion-main small {
+    color: #aaa;
+}
+
+.suggestion-status-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 150px;
+}
+
+.suggestion-status-form label {
+    color: #c8b89a;
+    font-size: 0.85rem;
+}
+
+.suggestion-status-form select {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+}
+
+.status-new        { background: #1a3a5c; color: #7ab3e0; }
+.status-reviewing  { background: #3a3000; color: #d4a017; }
+.status-planned    { background: #2a355f; color: #9fb8ff; }
+.status-done       { background: #1a4a2e; color: #7dd9a0; }
