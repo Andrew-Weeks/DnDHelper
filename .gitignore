@@ -65,6 +65,12 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# App data — uploads and database should not be committed
+uploads/
+*.db
+cert.pem
+key.pem
+
 # Scrapy stuff:
 .scrapy
 
