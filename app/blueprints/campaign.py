@@ -33,12 +33,19 @@ def _voice_sample_dir(campaign_id):
 
 
 def _is_campaign_accessible(campaign):
-    """Return True if current_user is the DM or a member of this campaign."""
+    """Return True if current_user is the DM, a member, or a developer."""
+    if current_user.is_developer():
+        return True
     if campaign.dm_id == current_user.id:
         return True
     return CampaignMember.query.filter_by(
         campaign_id=campaign.id, user_id=current_user.id
     ).first() is not None
+
+
+def _is_campaign_dm(campaign):
+    """Return True if current_user is the DM of this campaign or a developer."""
+    return campaign.dm_id == current_user.id or current_user.is_developer()
 
 
 def _get_campaign_or_403(campaign_id):
@@ -131,7 +138,7 @@ def campaign_view(campaign_id):
 @role_required('dm')
 def campaign_invite(campaign_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
 
     username = request.form.get('username', '').strip()
@@ -203,7 +210,7 @@ def decline_invite(invite_id):
 @role_required('dm')
 def remove_member(campaign_id, user_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
     member = CampaignMember.query.filter_by(
         campaign_id=campaign_id, user_id=user_id
@@ -291,7 +298,7 @@ def session_view(campaign_id, session_id):
 @role_required('dm')
 def session_process(campaign_id, session_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
     sess = db.session.get(Session, session_id)
     if not sess or sess.campaign_id != campaign_id:
@@ -345,7 +352,7 @@ def session_status(campaign_id, session_id):
 @role_required('dm')
 def map_speakers(campaign_id, session_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
     sess = db.session.get(Session, session_id)
     if not sess or sess.campaign_id != campaign_id:
@@ -377,7 +384,7 @@ def map_speakers(campaign_id, session_id):
 @role_required('dm')
 def session_delete(campaign_id, session_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
     sess = db.session.get(Session, session_id)
     if not sess or sess.campaign_id != campaign_id:
@@ -403,7 +410,7 @@ def session_delete(campaign_id, session_id):
 @role_required('dm')
 def session_audio(campaign_id, session_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
     sess = db.session.get(Session, session_id)
     if not sess or sess.campaign_id != campaign_id or not sess.audio_filename:

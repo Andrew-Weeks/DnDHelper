@@ -22,7 +22,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def is_dm(self):
-        return self.role == 'dm'
+        return self.role in ('dm', 'developer')
 
     def is_developer(self):
         return self.role == 'developer'
