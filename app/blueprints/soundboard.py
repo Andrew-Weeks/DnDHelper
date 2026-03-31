@@ -7,7 +7,7 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from models import (
+from app.models import (
     CharacterSpell,
     db,
     Character,
@@ -18,7 +18,7 @@ from models import (
     User,
     get_or_create_default_character,
 )
-from spell_sync import sync_open5e_srd_spells
+from app.services.spell_sync import sync_open5e_srd_spells
 
 soundboard_bp = Blueprint('soundboard', __name__, url_prefix='/soundboard')
 
@@ -171,23 +171,23 @@ def index():
                              .filter(CharacterSpell.character_id == active_character.id)
                              .order_by(Spell.level.asc(), Spell.name.asc())
                              .all())
-    
+
     # Get user's friends (both directions)
     sent_friendships = Friendship.query.filter_by(
-        user_id=current_user.id, 
+        user_id=current_user.id,
         status='accepted'
     ).all()
     received_friendships = Friendship.query.filter_by(
         friend_id=current_user.id,
         status='accepted'
     ).all()
-    
+
     friends = []
     for f in sent_friendships:
         friends.append(f.friend)
     for f in received_friendships:
         friends.append(f.user)
-    
+
     return render_template('soundboard/index.html',
                            characters=characters,
                            active_character=active_character,
@@ -616,13 +616,13 @@ def share():
         ).first()
         if existing:
             continue
-        
+
         req = ShareRequest(from_user_id=current_user.id,
                            to_user_id=target.id,
                            soundboard_item_id=item.id)
         db.session.add(req)
         shared_count += 1
-    
+
     if shared_count > 0:
         db.session.commit()
         if shared_count == 1:
@@ -631,7 +631,7 @@ def share():
             flash(f'Share request sent to {shared_count} friends.', 'success')
     else:
         flash('No new share requests created (may already be sent).', 'info')
-    
+
     return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
 
 

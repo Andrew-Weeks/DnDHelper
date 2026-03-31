@@ -176,7 +176,7 @@ def process_session(app, session_id):
     persists TranscriptSegment rows, and updates Session.status.
     """
     with app.app_context():
-        from models import db, Session, TranscriptSegment, CampaignMember
+        from app.models import db, Session, TranscriptSegment, CampaignMember
 
         sess = db.session.get(Session, session_id)
         if not sess:

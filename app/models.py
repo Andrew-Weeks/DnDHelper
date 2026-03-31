@@ -1,12 +1,11 @@
 import os
 import shutil
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
-db = SQLAlchemy()
+from app.extensions import db
 
 
 class User(UserMixin, db.Model):

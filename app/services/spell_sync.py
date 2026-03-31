@@ -1,6 +1,6 @@
 import requests
 
-from models import Spell, db
+from app.models import Spell, db
 
 OPEN5E_SPELLS_API = 'https://api.open5e.com/spells/'
 SRD_DOCUMENT_SLUGS = ('wotc-srd', '5esrd')

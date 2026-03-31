@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 from flask_login import login_required
-from decorators import role_required
+from app.decorators import role_required
 
 main_bp = Blueprint('main', __name__)
 

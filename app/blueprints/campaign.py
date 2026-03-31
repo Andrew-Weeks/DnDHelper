@@ -7,9 +7,9 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from models import (db, User, Campaign, CampaignMember, CampaignInvite,
-                    Session, TranscriptSegment, VoiceSample)
-from decorators import role_required
+from app.models import (db, User, Campaign, CampaignMember, CampaignInvite,
+                        Session, TranscriptSegment, VoiceSample)
+from app.decorators import role_required
 
 campaign_bp = Blueprint('campaign', __name__, url_prefix='/campaign')
 
@@ -312,7 +312,7 @@ def session_process(campaign_id, session_id):
     sess.error_message = None
     db.session.commit()
 
-    from transcription import process_session
+    from app.services.transcription import process_session
     app = current_app._get_current_object()
     t = threading.Thread(target=process_session, args=(app, session_id), daemon=True)
     t.start()

@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 
-from decorators import role_required
-from models import db, Suggestion, User
+from app.decorators import role_required
+from app.models import db, Suggestion, User
 
 
 suggestions_bp = Blueprint('suggestions', __name__, url_prefix='/suggestions')
