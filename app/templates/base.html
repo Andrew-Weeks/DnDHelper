@@ -58,6 +58,28 @@
     </main>
 
     <script>
+        // Preserve scroll position across form submissions
+        document.addEventListener('submit', () => {
+            sessionStorage.setItem('scrollPos', window.scrollY);
+        });
+
+        // Restore scroll position after page loads
+        window.addEventListener('load', () => {
+            const savedPos = sessionStorage.getItem('scrollPos');
+            if (savedPos !== null) {
+                window.scrollTo(0, parseInt(savedPos));
+                sessionStorage.removeItem('scrollPos');
+            }
+        });
+
+        // Also restore on DOMContentLoaded for faster restoration
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedPos = sessionStorage.getItem('scrollPos');
+            if (savedPos !== null) {
+                window.scrollTo(0, parseInt(savedPos));
+            }
+        });
+
         const nav = document.querySelector('nav');
         const navToggle = document.querySelector('.nav-toggle');
 
