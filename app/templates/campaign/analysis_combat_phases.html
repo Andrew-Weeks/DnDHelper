@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Combat Timeline — {{ sess.title }} — DnD Helper{% endblock %}
+
+{% block content %}
+<div style="max-width:760px; margin:0 auto;">
+
+    <div class="card" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h1 style="margin:0 0 0.25rem;">Combat Timeline</h1>
+            <p style="margin:0; opacity:0.7;">{{ sess.title }} &bull; {{ campaign.name }}</p>
+        </div>
+        <a href="{{ url_for('campaign.session_view', campaign_id=campaign.id, session_id=sess.id) }}"
+           class="btn btn-secondary">&larr; Session</a>
+    </div>
+
+    <div class="card" style="margin-top:1rem;">
+        {% if analysis.status == 'completed' and result %}
+            {% if result.combat_phases %}
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="text-align:left; border-bottom:1px solid var(--border-color, #444);">
+                        <th style="padding:0.5rem 0.75rem; width:80px;">#</th>
+                        <th style="padding:0.5rem 0.75rem; width:120px;">Start</th>
+                        <th style="padding:0.5rem 0.75rem; width:120px;">End</th>
+                        <th style="padding:0.5rem 0.75rem;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for phase in result.combat_phases %}
+                    <tr style="border-bottom:1px solid var(--border-color, #333);">
+                        <td style="padding:0.6rem 0.75rem; opacity:0.6;">{{ loop.index }}</td>
+                        <td style="padding:0.6rem 0.75rem; font-family:monospace;">{{ phase.start }}</td>
+                        <td style="padding:0.6rem 0.75rem; font-family:monospace;">{{ phase.end }}</td>
+                        <td style="padding:0.6rem 0.75rem;">{{ phase.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="opacity:0.7; text-align:center; padding:1.5rem 0;">No combat encounters detected in this session.</p>
+            {% endif %}
+        {% elif analysis.status == 'processing' %}
+        <p style="text-align:center; opacity:0.7; padding:2rem 0;">&#8987; Detecting combat phases…</p>
+        {% elif analysis.status == 'failed' %}
+        <p style="color:#e07070;">Analysis failed.</p>
+        <pre style="font-size:0.8rem; opacity:0.7; white-space:pre-wrap; overflow:auto;">{{ analysis.error_message }}</pre>
+        {% else %}
+        <p style="opacity:0.7;">No data available yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

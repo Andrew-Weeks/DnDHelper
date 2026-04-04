@@ -8,7 +8,8 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app.models import (db, User, Campaign, CampaignMember, CampaignInvite,
-                        Session, TranscriptSegment, VoiceSample)
+                        Session, TranscriptSegment, VoiceSample, SessionAnalysis)
+from app.services.analysis import ANALYSIS_TYPES
 from app.decorators import role_required
 
 campaign_bp = Blueprint('campaign', __name__, url_prefix='/campaign')
@@ -222,31 +223,53 @@ def remove_member(campaign_id, user_id):
 
 
 # ---------------------------------------------------------------------------
-# Record new session (DM only)
+# Record / upload new session (DM only)
 # ---------------------------------------------------------------------------
+
+_ALLOWED_AUDIO_EXTENSIONS = {'.webm', '.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aac', '.mp4'}
+
+
+def _allowed_audio(filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in _ALLOWED_AUDIO_EXTENSIONS
+
 
 @campaign_bp.route('/<int:campaign_id>/session/new', methods=['GET', 'POST'])
 @login_required
 @role_required('dm')
 def session_new(campaign_id):
     campaign = db.session.get(Campaign, campaign_id)
-    if not campaign or campaign.dm_id != current_user.id:
+    if not campaign or not _is_campaign_dm(campaign):
         abort(403)
 
     if request.method == 'POST':
-        audio_blob = request.files.get('audio_blob')
         title = request.form.get('title', '').strip()
-
         if not title:
             flash('Please give the session a title.', 'error')
             return redirect(url_for('campaign.session_new', campaign_id=campaign_id))
-        if not audio_blob:
-            flash('No audio received.', 'error')
-            return redirect(url_for('campaign.session_new', campaign_id=campaign_id))
 
-        filename = f'{uuid.uuid4().hex}.webm'
+        source = request.form.get('source', 'record')  # 'record' or 'upload'
         dest_dir = _session_upload_dir(campaign_id)
-        audio_blob.save(os.path.join(dest_dir, filename))
+
+        if source == 'upload':
+            audio_file = request.files.get('audio_file')
+            if not audio_file or not audio_file.filename:
+                flash('No file selected.', 'error')
+                return redirect(url_for('campaign.session_new', campaign_id=campaign_id))
+            original_name = secure_filename(audio_file.filename)
+            if not _allowed_audio(original_name):
+                flash('Unsupported file type. Allowed: mp3, wav, m4a, ogg, flac, aac, mp4, webm.', 'error')
+                return redirect(url_for('campaign.session_new', campaign_id=campaign_id))
+            ext = os.path.splitext(original_name)[1].lower()
+            filename = f'{uuid.uuid4().hex}{ext}'
+            audio_file.save(os.path.join(dest_dir, filename))
+        else:
+            audio_blob = request.files.get('audio_blob')
+            if not audio_blob:
+                flash('No audio received.', 'error')
+                return redirect(url_for('campaign.session_new', campaign_id=campaign_id))
+            filename = f'{uuid.uuid4().hex}.webm'
+            audio_blob.save(os.path.join(dest_dir, filename))
 
         sess = Session(campaign_id=campaign_id, title=title,
                        audio_filename=filename, status='uploaded')
@@ -373,6 +396,109 @@ def map_speakers(campaign_id, session_id):
     flash('Speaker mapping saved.', 'success')
     return redirect(url_for('campaign.session_view',
                             campaign_id=campaign_id, session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Trigger batch analysis (DM only)
+# ---------------------------------------------------------------------------
+
+@campaign_bp.route('/<int:campaign_id>/session/<int:session_id>/analyze', methods=['POST'])
+@login_required
+@role_required('dm')
+def session_analyze(campaign_id, session_id):
+    campaign = db.session.get(Campaign, campaign_id)
+    if not campaign or not _is_campaign_dm(campaign):
+        abort(403)
+    sess = db.session.get(Session, session_id)
+    if not sess or sess.campaign_id != campaign_id:
+        abort(404)
+    if sess.status != 'completed':
+        flash('Transcription must be completed before running analysis.', 'error')
+        return redirect(url_for('campaign.session_view',
+                                campaign_id=campaign_id, session_id=session_id))
+
+    api_key = current_app.config.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        flash('ANTHROPIC_API_KEY is not configured. Set it as an environment variable.', 'error')
+        return redirect(url_for('campaign.session_view',
+                                campaign_id=campaign_id, session_id=session_id))
+
+    # Prevent re-triggering while any analysis is still running
+    running = SessionAnalysis.query.filter_by(
+        session_id=session_id, status='processing'
+    ).first()
+    if running:
+        flash('Analysis is already in progress.', 'error')
+        return redirect(url_for('campaign.session_view',
+                                campaign_id=campaign_id, session_id=session_id))
+
+    from app.services.analysis import analyze_session
+    app = current_app._get_current_object()
+    t = threading.Thread(target=analyze_session, args=(app, session_id), daemon=True)
+    t.start()
+
+    flash('Analysis started. Results will appear on this page as each pass completes.', 'success')
+    return redirect(url_for('campaign.session_view',
+                            campaign_id=campaign_id, session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Analysis status (JSON polling)
+# ---------------------------------------------------------------------------
+
+@campaign_bp.route('/<int:campaign_id>/session/<int:session_id>/analysis/status')
+@login_required
+def analysis_status(campaign_id, session_id):
+    campaign = _get_campaign_or_403(campaign_id)
+    sess = db.session.get(Session, session_id)
+    if not sess or sess.campaign_id != campaign_id:
+        abort(404)
+
+    rows = SessionAnalysis.query.filter_by(session_id=session_id).all()
+    statuses = {r.analysis_type: r.status for r in rows}
+    return jsonify(statuses)
+
+
+# ---------------------------------------------------------------------------
+# Analysis result views
+# ---------------------------------------------------------------------------
+
+@campaign_bp.route('/<int:campaign_id>/session/<int:session_id>/analysis/<analysis_type>')
+@login_required
+def analysis_view(campaign_id, session_id, analysis_type):
+    if analysis_type not in ANALYSIS_TYPES:
+        abort(404)
+
+    campaign = _get_campaign_or_403(campaign_id)
+    sess = db.session.get(Session, session_id)
+    if not sess or sess.campaign_id != campaign_id:
+        abort(404)
+
+    analysis = SessionAnalysis.query.filter_by(
+        session_id=session_id, analysis_type=analysis_type
+    ).first_or_404()
+
+    result = None
+    if analysis.status == 'completed' and analysis.result_json:
+        import json
+        result = json.loads(analysis.result_json)
+
+    # For ic_ooc we also need the segments with their context labels
+    segments = None
+    if analysis_type == 'ic_ooc' and analysis.status == 'completed':
+        segments = (TranscriptSegment.query
+                    .filter_by(session_id=session_id)
+                    .order_by(TranscriptSegment.start_time)
+                    .all())
+
+    return render_template(
+        f'campaign/analysis_{analysis_type}.html',
+        campaign=campaign,
+        sess=sess,
+        analysis=analysis,
+        result=result,
+        segments=segments,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -200,8 +200,32 @@ class TranscriptSegment(db.Model):
     start_time      = db.Column(db.Float, nullable=False)
     end_time        = db.Column(db.Float, nullable=False)
     text            = db.Column(db.Text, nullable=False)
+    context         = db.Column(db.String(20), nullable=True)
+    # context values: 'in_character', 'out_of_character', 'unknown'
 
     speaker_user = db.relationship('User', foreign_keys=[speaker_user_id])
+
+
+# ---------------------------------------------------------------------------
+# Session analysis (Claude-powered, async)
+# ---------------------------------------------------------------------------
+
+class SessionAnalysis(db.Model):
+    __tablename__ = 'session_analysis'
+    __table_args__ = (db.UniqueConstraint('session_id', 'analysis_type'),)
+
+    id            = db.Column(db.Integer, primary_key=True)
+    session_id    = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
+    analysis_type = db.Column(db.String(50), nullable=False)
+    # analysis_type values: 'summary', 'ic_ooc', 'combat_phases', 'npcs'
+    status        = db.Column(db.String(20), nullable=False, default='pending')
+    # status values: 'pending', 'processing', 'completed', 'failed'
+    result_json   = db.Column(db.Text, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at    = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    session = db.relationship('Session', backref=db.backref('analyses', lazy=True,
+                                                             cascade='all, delete-orphan'))
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +324,15 @@ def ensure_schema_upgrades():
     if 'character_id' not in soundboard_columns:
         with db.engine.begin() as conn:
             conn.execute(text('ALTER TABLE soundboard_item ADD COLUMN character_id INTEGER'))
+
+    if 'transcript_segment' in table_names:
+        segment_columns = {col['name'] for col in inspect(db.engine).get_columns('transcript_segment')}
+        if 'context' not in segment_columns:
+            with db.engine.begin() as conn:
+                conn.execute(text('ALTER TABLE transcript_segment ADD COLUMN context VARCHAR(20)'))
+
+    if 'session_analysis' not in table_names:
+        SessionAnalysis.__table__.create(bind=db.engine)
 
 
 def ensure_default_characters_and_migrate_soundboards(soundboard_root):

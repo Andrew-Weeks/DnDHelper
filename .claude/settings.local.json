@@ -7,7 +7,11 @@
       "Bash(.venv/Scripts/python.exe -c \"import app\")",
       "Bash(.venv/Scripts/pip install:*)",
       "Bash(ls *.py)",
-      "Bash(.venv/Scripts/python.exe -c \"from app import create_app; app = create_app\\(\\); print\\(''OK - blueprints:'', [str\\(bp\\) for bp in app.blueprints]\\)\")"
+      "Bash(.venv/Scripts/python.exe -c \"from app import create_app; app = create_app\\(\\); print\\(''OK - blueprints:'', [str\\(bp\\) for bp in app.blueprints]\\)\")",
+      "Bash(wc -l /c/develop/SandBox/DnDHelper/app/blueprints/*.py)",
+      "WebSearch",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:docs.anthropic.com)"
     ]
   }
 }
