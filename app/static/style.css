@@ -597,6 +597,22 @@ input[type="file"] {
     white-space: pre-wrap;
 }
 
+.spell-desc-toggle {
+    background: none;
+    border: none;
+    color: #7eb8f7;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.spell-desc-toggle:hover {
+    color: #aed4ff;
+    text-decoration: underline;
+}
+
 .spell-custom-form .form-group {
     margin-bottom: 0.65rem;
 }
@@ -860,6 +876,252 @@ input[type="file"] {
 .status-reviewing  { background: #3a3000; color: #d4a017; }
 .status-planned    { background: #2a355f; color: #9fb8ff; }
 .status-done       { background: #1a4a2e; color: #7dd9a0; }
+
+/* =====================================================================
+   Spellbook page
+   ===================================================================== */
+
+.spellbook-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Header card */
+.spellbook-header-card {
+    padding: 1.25rem 2rem;
+}
+
+.spellbook-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.spellbook-character-select label {
+    display: block;
+    color: #c8b89a;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.spellbook-character-select select {
+    padding: 0.4rem 0.6rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+    font-size: 1rem;
+    min-width: 180px;
+}
+
+.spellbook-character-select select:focus {
+    outline: none;
+    border-color: #d4a017;
+}
+
+.spellbook-sync-area {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.spellbook-srd-count {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+/* Search + sort toggle row */
+.spellbook-search-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.spellbook-search-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex: 1;
+}
+
+.spellbook-search-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.spellbook-search-input:focus {
+    outline: none;
+    border-color: #d4a017;
+}
+
+.sort-toggle-btn {
+    white-space: nowrap;
+    background: #2e4057;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.9rem;
+}
+
+.sort-toggle-btn:hover {
+    background: #3a5068;
+}
+
+/* Body: two columns */
+.spellbook-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.spellbook-catalog,
+.spellbook-known {
+    padding: 1.25rem 1.5rem;
+}
+
+.spellbook-catalog h2,
+.spellbook-known h2 {
+    margin-bottom: 0.75rem;
+}
+
+.spellbook-result-count {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: #888;
+    margin-left: 0.5rem;
+}
+
+/* Catalog list */
+.catalog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.catalog-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #1e2a3e;
+}
+
+.catalog-row:last-child {
+    border-bottom: none;
+}
+
+.catalog-row-added {
+    opacity: 0.55;
+}
+
+.catalog-spell-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.catalog-spell-name {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #e0d7c6;
+}
+
+.catalog-spell-meta {
+    font-size: 0.75rem;
+    color: #9ba8bf;
+}
+
+.catalog-custom-badge {
+    color: #d4a017;
+    font-style: normal;
+    font-size: 0.7rem;
+}
+
+.catalog-added-badge {
+    font-size: 0.8rem;
+    color: #7dd9a0;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.catalog-add-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Custom spell collapsible */
+.custom-spell-details {
+    margin-top: 1.5rem;
+    border-top: 1px solid #2a2a4a;
+    padding-top: 1rem;
+}
+
+.custom-spell-summary {
+    cursor: pointer;
+    color: #d4a017;
+    font-size: 0.95rem;
+    user-select: none;
+    margin-bottom: 0.75rem;
+}
+
+.custom-spell-summary:hover {
+    color: #e8bc30;
+}
+
+.custom-spell-details .form-group input,
+.custom-spell-details .form-group select,
+.custom-spell-details .form-group textarea {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.custom-spell-details .form-group textarea {
+    resize: vertical;
+}
+
+.custom-spell-details .form-group {
+    margin-bottom: 0.65rem;
+}
+
+@media (max-width: 720px) {
+    .spellbook-body {
+        grid-template-columns: 1fr;
+    }
+
+    .spellbook-search-row {
+        flex-wrap: wrap;
+    }
+
+    .sort-toggle-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .catalog-list {
+        max-height: 40vh;
+    }
+}
 
 /* =====================================================================
    Initiative Tracker

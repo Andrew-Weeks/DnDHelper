@@ -121,12 +121,140 @@ def _spell_catalog_query(user_id):
     )
 
 
+_SORT_MODES = [
+    ('level_asc',  'Level ↑',   [Spell.level.asc(),       Spell.name.asc()]),
+    ('level_desc', 'Level ↓',   [Spell.level.desc(),      Spell.name.asc()]),
+    ('alpha_asc',  'A → Z',     [Spell.name.asc()]),
+    ('alpha_desc', 'Z → A',     [Spell.name.desc()]),
+    ('class',      'By Class',  [Spell.class_list.asc(),  Spell.level.asc(), Spell.name.asc()]),
+    ('school',     'By School', [Spell.school.asc(),      Spell.level.asc(), Spell.name.asc()]),
+]
+_SORT_KEYS = [m[0] for m in _SORT_MODES]
+
+
 def _own_item(item_id):
     """Return the SoundboardItem if it belongs to current_user, else abort 403."""
     item = db.session.get(SoundboardItem, item_id)
     if not item or item.user_id != current_user.id:
         abort(403)
     return item
+
+
+# ---------------------------------------------------------------------------
+# Spellbook page
+# ---------------------------------------------------------------------------
+
+@soundboard_bp.route('/spellbook')
+@login_required
+def spellbook():
+    characters = _list_characters_for_current_user()
+    active_character = _select_active_character(
+        characters,
+        request.args.get('character_id', type=int),
+    )
+
+    q = request.args.get('q', '').strip()
+    sort_key = request.args.get('sort', 'level_asc')
+    if sort_key not in _SORT_KEYS:
+        sort_key = 'level_asc'
+
+    current_idx = _SORT_KEYS.index(sort_key)
+    next_sort = _SORT_KEYS[(current_idx + 1) % len(_SORT_KEYS)]
+    sort_label = _SORT_MODES[current_idx][1]
+    order_clauses = _SORT_MODES[current_idx][2]
+
+    catalog_query = _spell_catalog_query(current_user.id)
+    if q:
+        search = f'%{q}%'
+        catalog_query = catalog_query.filter(
+            db.or_(
+                Spell.name.ilike(search),
+                Spell.school.ilike(search),
+                Spell.casting_time.ilike(search),
+                Spell.spell_range.ilike(search),
+                Spell.components.ilike(search),
+                Spell.description.ilike(search),
+                Spell.class_list.ilike(search),
+                Spell.source_name.ilike(search),
+            )
+        )
+
+    available_spells = catalog_query.order_by(*order_clauses).limit(100).all()
+
+    linked_spell_ids = {
+        link.spell_id
+        for link in CharacterSpell.query.filter_by(character_id=active_character.id).all()
+    }
+
+    character_spell_links = (CharacterSpell.query
+                             .join(Spell, CharacterSpell.spell_id == Spell.id)
+                             .filter(CharacterSpell.character_id == active_character.id)
+                             .order_by(Spell.level.asc(), Spell.name.asc())
+                             .all())
+
+    return render_template('spellbook/index.html',
+                           characters=characters,
+                           active_character=active_character,
+                           available_spells=available_spells,
+                           character_spell_links=character_spell_links,
+                           linked_spell_ids=linked_spell_ids,
+                           q=q,
+                           sort_key=sort_key,
+                           sort_label=sort_label,
+                           next_sort=next_sort,
+                           spell_count=Spell.query.filter_by(source_type='srd').count(),
+                           spell_level_label=_spell_level_label,
+                           spell_level_options=_spell_level_options())
+
+
+@soundboard_bp.route('/spellbook/search')
+@login_required
+def spellbook_search():
+    characters = _list_characters_for_current_user()
+    active_character = _select_active_character(
+        characters,
+        request.args.get('character_id', type=int),
+    )
+
+    q = request.args.get('q', '').strip()
+    sort_key = request.args.get('sort', 'level_asc')
+    if sort_key not in _SORT_KEYS:
+        sort_key = 'level_asc'
+
+    current_idx = _SORT_KEYS.index(sort_key)
+    order_clauses = _SORT_MODES[current_idx][2]
+
+    catalog_query = _spell_catalog_query(current_user.id)
+    if q:
+        search = f'%{q}%'
+        catalog_query = catalog_query.filter(
+            db.or_(
+                Spell.name.ilike(search),
+                Spell.school.ilike(search),
+                Spell.casting_time.ilike(search),
+                Spell.spell_range.ilike(search),
+                Spell.components.ilike(search),
+                Spell.description.ilike(search),
+                Spell.class_list.ilike(search),
+                Spell.source_name.ilike(search),
+            )
+        )
+
+    available_spells = catalog_query.order_by(*order_clauses).limit(100).all()
+
+    linked_spell_ids = {
+        link.spell_id
+        for link in CharacterSpell.query.filter_by(character_id=active_character.id).all()
+    }
+
+    html = render_template('spellbook/_catalog.html',
+                           available_spells=available_spells,
+                           linked_spell_ids=linked_spell_ids,
+                           active_character=active_character,
+                           q=q,
+                           sort_key=sort_key,
+                           spell_level_label=_spell_level_label)
+    return jsonify({'html': html, 'count': len(available_spells)})
 
 
 # ---------------------------------------------------------------------------
@@ -151,27 +279,6 @@ def index():
                         .order_by(ShareRequest.created_at.desc())
                         .all())
 
-    selected_spell_level = request.args.get('spell_level', type=int)
-    if selected_spell_level is None or selected_spell_level not in _spell_level_options():
-        selected_spell_level = 0
-
-    spell_search = request.args.get('spell_q', '').strip()
-    catalog_query = _spell_catalog_query(current_user.id)
-    catalog_query = catalog_query.filter(Spell.level == selected_spell_level)
-    if spell_search:
-        catalog_query = catalog_query.filter(Spell.name.ilike(f'%{spell_search}%'))
-
-    available_spells = (catalog_query
-                        .order_by(Spell.name.asc())
-                        .limit(300)
-                        .all())
-
-    character_spell_links = (CharacterSpell.query
-                             .join(Spell, CharacterSpell.spell_id == Spell.id)
-                             .filter(CharacterSpell.character_id == active_character.id)
-                             .order_by(Spell.level.asc(), Spell.name.asc())
-                             .all())
-
     # Get user's friends (both directions)
     sent_friendships = Friendship.query.filter_by(
         user_id=current_user.id,
@@ -193,15 +300,7 @@ def index():
                            active_character=active_character,
                            sounds=sounds,
                            pending_requests=pending_requests,
-                           friends=friends,
-                           available_spells=available_spells,
-                           character_spell_links=character_spell_links,
-                           spell_level_options=_spell_level_options(),
-                           selected_spell_level=selected_spell_level,
-                           selected_spell_level_label=_spell_level_label(selected_spell_level),
-                           spell_search=spell_search,
-                           spell_count=Spell.query.filter_by(source_type='srd').count(),
-                           spell_level_label=_spell_level_label)
+                           friends=friends)
 
 
 @soundboard_bp.route('/characters', methods=['POST'])
@@ -234,10 +333,10 @@ def sync_spells():
         result = sync_open5e_srd_spells()
     except Exception as exc:
         flash(f'Could not sync SRD spells right now: {exc}', 'error')
-        return redirect(url_for('soundboard.index', character_id=redirect_character_id))
+        return redirect(url_for('soundboard.spellbook', character_id=redirect_character_id))
 
     flash(f"SRD sync complete: {result['inserted']} added, {result['updated']} updated.", 'success')
-    return redirect(url_for('soundboard.index', character_id=redirect_character_id))
+    return redirect(url_for('soundboard.spellbook', character_id=redirect_character_id))
 
 
 @soundboard_bp.route('/spells/add', methods=['POST'])
@@ -247,12 +346,12 @@ def add_spell_to_character():
     spell_id = request.form.get('spell_id', type=int)
     if not spell_id:
         flash('Choose a spell first.', 'error')
-        return redirect(url_for('soundboard.index', character_id=character.id))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
     spell = db.session.get(Spell, spell_id)
     if not spell:
         flash('That spell could not be found.', 'error')
-        return redirect(url_for('soundboard.index', character_id=character.id))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
     if spell.source_type != 'srd' and spell.created_by_user_id != current_user.id:
         abort(403)
@@ -260,12 +359,14 @@ def add_spell_to_character():
     existing_link = CharacterSpell.query.filter_by(character_id=character.id, spell_id=spell.id).first()
     if existing_link:
         flash(f'{spell.name} is already on {character.name}.', 'info')
-        return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id,
+                                q=request.form.get('q', ''), sort=request.form.get('sort', '')))
 
     db.session.add(CharacterSpell(character_id=character.id, spell_id=spell.id))
     db.session.commit()
     flash(f'{spell.name} added to {character.name}.', 'success')
-    return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
+    return redirect(url_for('soundboard.spellbook', character_id=character.id,
+                            q=request.form.get('q', ''), sort=request.form.get('sort', '')))
 
 
 @soundboard_bp.route('/spells/remove/<int:link_id>', methods=['POST'])
@@ -277,11 +378,11 @@ def remove_spell_from_character(link_id):
 
     character_id = link.character_id
     spell_name = link.spell.name
-    spell_level = link.spell.level
     db.session.delete(link)
     db.session.commit()
     flash(f'{spell_name} removed from character spellbook.', 'success')
-    return redirect(url_for('soundboard.index', character_id=character_id, spell_level=spell_level))
+    return redirect(url_for('soundboard.spellbook', character_id=character_id,
+                            q=request.form.get('q', ''), sort=request.form.get('sort', '')))
 
 
 @soundboard_bp.route('/spells/custom', methods=['POST'])
@@ -301,13 +402,13 @@ def create_custom_spell():
 
     if len(name) < 2 or len(name) > 120:
         flash('Custom spell name must be between 2 and 120 characters.', 'error')
-        return redirect(url_for('soundboard.index', character_id=character.id))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
     if level is None or level not in _spell_level_options():
         flash('Custom spell level must be between 0 and 9.', 'error')
-        return redirect(url_for('soundboard.index', character_id=character.id))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
     if len(description) < 10:
         flash('Please provide a longer custom spell description.', 'error')
-        return redirect(url_for('soundboard.index', character_id=character.id, spell_level=level))
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
     spell = Spell(
         name=name,
@@ -329,7 +430,7 @@ def create_custom_spell():
     db.session.add(CharacterSpell(character_id=character.id, spell_id=spell.id))
     db.session.commit()
     flash(f'Custom spell "{spell.name}" created and added to {character.name}.', 'success')
-    return redirect(url_for('soundboard.index', character_id=character.id, spell_level=spell.level))
+    return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
 
 @soundboard_bp.route('/import-account', methods=['POST'])

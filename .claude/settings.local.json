@@ -11,7 +11,8 @@
       "Bash(wc -l /c/develop/SandBox/DnDHelper/app/blueprints/*.py)",
       "WebSearch",
       "WebFetch(domain:www.anthropic.com)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(grep -l \"spell\" \"c:\\\\develop\\\\SandBox\\\\DnDHelper\\\\app\\\\blueprints\"/*.py)"
     ]
   }
 }

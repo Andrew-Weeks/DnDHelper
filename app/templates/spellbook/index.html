@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% block title %}Spellbook — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="spellbook-page">
+
+  <!-- ===== HEADER: character selector + sync ===== -->
+  <div class="card spellbook-header-card">
+    <div class="spellbook-header-row">
+      <div class="spellbook-character-select">
+        <form method="GET" action="{{ url_for('soundboard.spellbook') }}">
+          <input type="hidden" name="q" value="{{ q }}">
+          <input type="hidden" name="sort" value="{{ sort_key }}">
+          <label for="characterSelect">Character</label>
+          <select id="characterSelect" name="character_id" onchange="this.form.submit()">
+            {% for character in characters %}
+            <option value="{{ character.id }}" {% if character.id == active_character.id %}selected{% endif %}>
+              {{ character.name }}{% if character.is_default %} (default){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="spellbook-sync-area">
+        <form method="POST" action="{{ url_for('soundboard.sync_spells') }}">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
+          <button type="submit" class="btn btn-sm btn-secondary">Sync SRD Spells</button>
+        </form>
+        <span class="spellbook-srd-count">SRD: <strong>{{ spell_count }}</strong></span>
+      </div>
+    </div>
+
+    <!-- ===== SEARCH + SORT TOGGLE ===== -->
+    <div class="spellbook-search-row">
+      <input type="text"
+             id="spellSearchInput"
+             value="{{ q }}"
+             placeholder="Search by name, school, class, description, components…"
+             class="spellbook-search-input"
+             autocomplete="off"
+             autofocus>
+      <a id="sortToggleBtn"
+         href="{{ url_for('soundboard.spellbook', character_id=active_character.id, q=q, sort=next_sort) }}"
+         class="btn sort-toggle-btn"
+         title="Cycle sort order">↕ {{ sort_label }}</a>
+    </div>
+  </div>
+
+  <!-- ===== TWO-COLUMN BODY ===== -->
+  <div class="spellbook-body">
+
+    <!-- ===== CATALOG ===== -->
+    <div class="spellbook-catalog card">
+      <h2>Spell Catalog
+        <span class="spellbook-result-count" id="catalogCount">{{ available_spells | length }} result{{ 's' if available_spells | length != 1 }}</span>
+      </h2>
+      <div class="catalog-list" id="spellbookCatalogList">
+        {% include 'spellbook/_catalog.html' %}
+      </div>
+    </div>
+
+    <!-- ===== KNOWN SPELLS ===== -->
+    <div class="spellbook-known card">
+      <h2>{{ active_character.name }}'s Spells
+        <span class="spellbook-result-count" id="knownCount">{{ character_spell_links | length }}</span>
+      </h2>
+      {% if character_spell_links %}
+      <div class="spellbook-search-row">
+        <input type="text"
+               id="knownFilterInput"
+               placeholder="Filter spells…"
+               class="spellbook-search-input"
+               autocomplete="off">
+        <button id="knownSortBtn" class="btn sort-toggle-btn" type="button">↕ Level ↑</button>
+      </div>
+      <div class="spell-list" id="knownSpellList">
+        {% for link in character_spell_links %}
+        <div class="spell-item"
+             data-search="{{ [link.spell.name, link.spell.school or '', link.spell.class_list or '', link.spell.casting_time or '', link.spell.description] | join(' ') | lower }}"
+             data-name="{{ link.spell.name | lower }}"
+             data-level="{{ link.spell.level }}"
+             data-school="{{ (link.spell.school or '') | lower }}">
+          <div class="spell-item-header">
+            <strong>{{ link.spell.name }}</strong>
+            <span class="spell-meta">{{ spell_level_label(link.spell.level) }} · {{ link.spell.source_type | upper }}</span>
+          </div>
+          {% if link.spell.school or link.spell.casting_time or link.spell.spell_range or link.spell.components or link.spell.duration %}
+          <p class="spell-fact-line">
+            {% if link.spell.school %}School: {{ link.spell.school }}{% endif %}
+            {% if link.spell.casting_time %} · Cast: {{ link.spell.casting_time }}{% endif %}
+            {% if link.spell.spell_range %} · Range: {{ link.spell.spell_range }}{% endif %}
+            {% if link.spell.components %} · {{ link.spell.components }}{% endif %}
+            {% if link.spell.duration %} · {{ link.spell.duration }}{% endif %}
+          </p>
+          {% endif %}
+          {% if link.spell.material_description %}
+          <p class="spell-fact-line">Material: {{ link.spell.material_description }}</p>
+          {% endif %}
+          <p class="spell-desc hidden">{{ link.spell.description }}</p>
+          <button class="spell-desc-toggle" onclick="toggleSpellDesc(this)">Show description</button>
+          <form method="POST" action="{{ url_for('soundboard.remove_spell_from_character', link_id=link.id) }}">
+            <input type="hidden" name="character_id" value="{{ active_character.id }}">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="sort" value="{{ sort_key }}">
+            <button type="submit" class="btn btn-sm btn-secondary">Remove</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="sb-empty">No spells added yet. Search the catalog on the left and click + Add.</p>
+      {% endif %}
+
+      <!-- Create Custom Spell -->
+      <details class="custom-spell-details">
+        <summary class="custom-spell-summary">+ Create Custom Spell</summary>
+        <form method="POST" action="{{ url_for('soundboard.create_custom_spell') }}" class="spell-custom-form">
+          <input type="hidden" name="character_id" value="{{ active_character.id }}">
+          <div class="form-group">
+            <label for="customName">Name</label>
+            <input id="customName" type="text" name="custom_name" maxlength="120" required>
+          </div>
+          <div class="form-group">
+            <label for="customLevel">Level</label>
+            <select id="customLevel" name="custom_level" required>
+              {% for level in spell_level_options %}
+              <option value="{{ level }}">{{ spell_level_label(level) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="customSchool">School</label>
+            <input id="customSchool" type="text" name="custom_school" maxlength="80" placeholder="e.g. Evocation">
+          </div>
+          <div class="form-group">
+            <label for="customCast">Casting Time</label>
+            <input id="customCast" type="text" name="custom_casting_time" maxlength="120" placeholder="e.g. 1 action">
+          </div>
+          <div class="form-group">
+            <label for="customRange">Range</label>
+            <input id="customRange" type="text" name="custom_range" maxlength="120" placeholder="e.g. 60 feet">
+          </div>
+          <div class="form-group">
+            <label for="customComponents">Components</label>
+            <input id="customComponents" type="text" name="custom_components" maxlength="120" placeholder="e.g. V, S, M">
+          </div>
+          <div class="form-group">
+            <label for="customMaterial">Material details</label>
+            <textarea id="customMaterial" name="custom_material_description" rows="2"
+                      placeholder="e.g. A pinch of sulfur"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="customDuration">Duration</label>
+            <input id="customDuration" type="text" name="custom_duration" maxlength="120" placeholder="e.g. Instantaneous">
+          </div>
+          <div class="form-group">
+            <label for="customDescription">Description <small>(required, min 10 chars)</small></label>
+            <textarea id="customDescription" name="custom_description" rows="5" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm">Create and Add</button>
+        </form>
+      </details>
+    </div>
+
+  </div><!-- /.spellbook-body -->
+</div>
+
+<script>
+(function () {
+  const searchInput  = document.getElementById('spellSearchInput');
+  const catalogList  = document.getElementById('spellbookCatalogList');
+  const catalogCount = document.getElementById('catalogCount');
+  const sortBtn      = document.getElementById('sortToggleBtn');
+  const characterId  = {{ active_character.id }};
+  const searchUrl    = '{{ url_for("soundboard.spellbook_search") }}';
+  const pageUrl      = '{{ url_for("soundboard.spellbook") }}';
+
+  let currentSort = '{{ sort_key }}';
+  let nextSort    = '{{ next_sort }}';
+  let debounceTimer;
+
+  function fetchCatalog(q) {
+    const params = new URLSearchParams({ q, sort: currentSort, character_id: characterId });
+    catalogList.style.opacity = '0.4';
+    fetch(`${searchUrl}?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        catalogList.innerHTML = data.html;
+        catalogList.style.opacity = '1';
+        const n = data.count;
+        catalogCount.textContent = n + ' result' + (n !== 1 ? 's' : '');
+        // Keep sort-toggle href in sync with current q
+        updateSortHref(q);
+      })
+      .catch(() => { catalogList.style.opacity = '1'; });
+  }
+
+  function updateSortHref(q) {
+    const params = new URLSearchParams({ character_id: characterId, q, sort: nextSort });
+    sortBtn.href = `${pageUrl}?${params}`;
+  }
+
+  searchInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => fetchCatalog(this.value.trim()), 280);
+  });
+
+  // When sort toggle is clicked, bake the current input value into the URL
+  sortBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    const params = new URLSearchParams({
+      character_id: characterId,
+      q: searchInput.value.trim(),
+      sort: nextSort,
+    });
+    window.location.href = `${pageUrl}?${params}`;
+  });
+})();
+
+(function () {
+  const filterInput = document.getElementById('knownFilterInput');
+  if (!filterInput) return;
+  const knownCount  = document.getElementById('knownCount');
+  const sortBtn     = document.getElementById('knownSortBtn');
+  const list        = document.getElementById('knownSpellList');
+
+  const SORT_MODES = [
+    { key: 'level_asc',  label: 'Level ↑',   cmp: (a, b) => cmpLevel(a, b) || cmpName(a, b) },
+    { key: 'level_desc', label: 'Level ↓',   cmp: (a, b) => cmpLevel(b, a) || cmpName(a, b) },
+    { key: 'name_asc',   label: 'Name ↑',    cmp: (a, b) => cmpName(a, b) },
+    { key: 'name_desc',  label: 'Name ↓',    cmp: (a, b) => cmpName(b, a) },
+    { key: 'school',     label: 'By School', cmp: (a, b) => cmpSchool(a, b) || cmpLevel(a, b) || cmpName(a, b) },
+  ];
+  let sortIdx = 0;
+
+  function cmpName(a, b)   { return a.dataset.name.localeCompare(b.dataset.name); }
+  function cmpLevel(a, b)  { return Number(a.dataset.level) - Number(b.dataset.level); }
+  function cmpSchool(a, b) { return a.dataset.school.localeCompare(b.dataset.school); }
+
+  function applySort() {
+    const items = [...list.querySelectorAll('.spell-item')];
+    items.sort(SORT_MODES[sortIdx].cmp);
+    items.forEach(item => list.appendChild(item));
+  }
+
+  function updateCount() {
+    const visible = list.querySelectorAll('.spell-item:not([style*="display: none"])').length;
+    knownCount.textContent = visible;
+  }
+
+  sortBtn.addEventListener('click', function () {
+    sortIdx = (sortIdx + 1) % SORT_MODES.length;
+    sortBtn.textContent = '↕ ' + SORT_MODES[sortIdx].label;
+    applySort();
+  });
+
+  filterInput.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    list.querySelectorAll('.spell-item').forEach(function (item) {
+      item.style.display = (!q || item.dataset.search.includes(q)) ? '' : 'none';
+    });
+    updateCount();
+  });
+})();
+
+function toggleSpellDesc(btn) {
+  const desc = btn.previousElementSibling;
+  const hidden = desc.classList.toggle('hidden');
+  btn.textContent = hidden ? 'Show description' : 'Hide description';
+}
+</script>
+{% endblock %}

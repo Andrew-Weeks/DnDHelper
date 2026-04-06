@@ -1,0 +1,33 @@
+{% if available_spells %}
+  {% for spell in available_spells %}
+  {% set already_added = spell.id in linked_spell_ids %}
+  <div class="catalog-row {% if already_added %}catalog-row-added{% endif %}">
+    <div class="catalog-spell-info">
+      <span class="catalog-spell-name">{{ spell.name }}</span>
+      <span class="catalog-spell-meta">
+        {{ spell_level_label(spell.level) }}
+        {% if spell.school %} · {{ spell.school }}{% endif %}
+        {% if spell.class_list %} · <em>{{ spell.class_list }}</em>{% endif %}
+        {% if spell.source_type == 'custom' %} · <span class="catalog-custom-badge">Custom</span>{% endif %}
+      </span>
+    </div>
+    {% if already_added %}
+    <span class="catalog-added-badge">✓ Added</span>
+    {% else %}
+    <form method="POST" action="{{ url_for('soundboard.add_spell_to_character') }}">
+      <input type="hidden" name="character_id" value="{{ active_character.id }}">
+      <input type="hidden" name="spell_id" value="{{ spell.id }}">
+      <input type="hidden" name="q" value="{{ q }}">
+      <input type="hidden" name="sort" value="{{ sort_key }}">
+      <button type="submit" class="btn btn-sm catalog-add-btn">+ Add</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  {% if q %}
+  <p class="sb-empty">No spells matched "{{ q }}".</p>
+  {% else %}
+  <p class="sb-empty">No spells in catalog yet — hit Sync SRD Spells above.</p>
+  {% endif %}
+{% endif %}
