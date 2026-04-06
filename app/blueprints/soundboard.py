@@ -3,7 +3,7 @@ import shutil
 import uuid
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, current_app, send_from_directory, abort)
+                   flash, current_app, send_from_directory, abort, jsonify)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -522,6 +522,7 @@ def delete(item_id):
     item = _own_item(item_id)
     file_path = _item_storage_path(item)
     redirect_character_id = request.form.get('character_id', type=int) or item.character_id
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     # Remove pending share requests for this item
     ShareRequest.query.filter_by(soundboard_item_id=item.id).delete()
@@ -531,7 +532,11 @@ def delete(item_id):
     if os.path.exists(file_path):
         os.remove(file_path)
 
-    flash(f'"{item.name}" deleted.', 'success')
+    message = f'"{item.name}" deleted.'
+    if is_ajax:
+        return jsonify({'status': 'success', 'message': message, 'item_id': item_id})
+
+    flash(message, 'success')
     return redirect(url_for('soundboard.index', character_id=redirect_character_id))
 
 
@@ -545,12 +550,23 @@ def rename(item_id):
     item = _own_item(item_id)
     new_name = request.form.get('name', '').strip()
     redirect_character_id = request.form.get('character_id', type=int) or item.character_id
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not new_name:
-        flash('Name cannot be empty.', 'error')
+        message = 'Name cannot be empty.'
+        if is_ajax:
+            return jsonify({'status': 'error', 'message': message}), 400
+        flash(message, 'error')
         return redirect(url_for('soundboard.index', character_id=redirect_character_id))
+
     item.name = new_name
     db.session.commit()
-    flash('Sound renamed.', 'success')
+
+    message = 'Sound renamed.'
+    if is_ajax:
+        return jsonify({'status': 'success', 'message': message, 'item_id': item_id, 'new_name': new_name})
+
+    flash(message, 'success')
     return redirect(url_for('soundboard.index', character_id=redirect_character_id))
 
 
@@ -563,13 +579,17 @@ def rename(item_id):
 def share():
     item_id = request.form.get('item_id', type=int)
     redirect_character_id = request.form.get('character_id', type=int)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     # Get friend IDs (from checkboxes) or a manually typed username
     friend_id_list = request.form.getlist('friend_id')
     target_username = request.form.get('target_username', '').strip()
 
     if not item_id:
-        flash('Missing sound ID.', 'error')
+        message = 'Missing sound ID.'
+        if is_ajax:
+            return jsonify({'status': 'error', 'message': message}), 400
+        flash(message, 'error')
         return redirect(url_for('soundboard.index', character_id=redirect_character_id))
 
     item = _own_item(item_id)
@@ -584,24 +604,39 @@ def share():
             if target and target.id != current_user.id:
                 targets.append(target)
         if not targets:
-            flash('No valid friends selected.', 'error')
+            message = 'No valid friends selected.'
+            if is_ajax:
+                return jsonify({'status': 'error', 'message': message}), 400
+            flash(message, 'error')
             return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
     # Handle typed username
     elif target_username:
         target = User.query.filter_by(username=target_username).first()
         if not target:
-            flash(f'No user found with username "{target_username}".', 'error')
+            message = f'No user found with username "{target_username}".'
+            if is_ajax:
+                return jsonify({'status': 'error', 'message': message}), 400
+            flash(message, 'error')
             return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
         if target.id == current_user.id:
-            flash("You can't share a sound with yourself.", 'error')
+            message = "You can't share a sound with yourself."
+            if is_ajax:
+                return jsonify({'status': 'error', 'message': message}), 400
+            flash(message, 'error')
             return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
         targets = [target]
     else:
-        flash('Select friends or enter a username.', 'error')
+        message = 'Select friends or enter a username.'
+        if is_ajax:
+            return jsonify({'status': 'error', 'message': message}), 400
+        flash(message, 'error')
         return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
 
     if not targets:
-        flash('No valid targets to share with.', 'error')
+        message = 'No valid targets to share with.'
+        if is_ajax:
+            return jsonify({'status': 'error', 'message': message}), 400
+        flash(message, 'error')
         return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
 
     # Create share requests for each target
@@ -626,12 +661,17 @@ def share():
     if shared_count > 0:
         db.session.commit()
         if shared_count == 1:
-            flash(f'Share request sent to {targets[0].username}.', 'success')
+            message = f'Share request sent to {targets[0].username}.'
         else:
-            flash(f'Share request sent to {shared_count} friends.', 'success')
+            message = f'Share request sent to {shared_count} friends.'
     else:
-        flash('No new share requests created (may already be sent).', 'info')
+        message = 'No new share requests created (may already be sent).'
 
+    if is_ajax:
+        status = 'success' if shared_count > 0 else 'info'
+        return jsonify({'status': status, 'message': message, 'item_id': item_id, 'shared_count': shared_count})
+
+    flash(message, 'success' if shared_count > 0 else 'info')
     return redirect(url_for('soundboard.index', character_id=redirect_character_id or item.character_id))
 
 

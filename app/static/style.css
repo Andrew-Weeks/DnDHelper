@@ -281,6 +281,12 @@ main {
     color: #d97d7d;
 }
 
+.flash-info {
+    background: #1a3a4a;
+    border: 1px solid #2d5a7a;
+    color: #7db8d9;
+}
+
 /* Soundboard page */
 .soundboard-page {
     display: flex;

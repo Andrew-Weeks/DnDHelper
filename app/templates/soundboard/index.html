@@ -582,5 +582,113 @@ function toggleRename(id) {
 function toggleShare(id) {
   document.getElementById(`shareform-${id}`).classList.toggle('hidden');
 }
+
+// ---------------------------------------------------------------------------
+// AJAX handlers for delete / rename / share (no page reload)
+// ---------------------------------------------------------------------------
+
+// Show toast notification
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `flash flash-${type}`;
+  toast.textContent = message;
+  toast.style.position = 'fixed';
+  toast.style.top = '20px';
+  toast.style.right = '20px';
+  toast.style.zIndex = '9999';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// Delete form AJAX handler
+document.addEventListener('submit', (e) => {
+  if (e.target.action.includes('/delete/')) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const itemId = e.target.action.split('/delete/')[1];
+    const itemName = e.target.querySelector('[title="Delete"]').getAttribute('title');
+
+    fetch(e.target.action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        const item = document.getElementById(`sbitem-${itemId}`);
+        if (item) item.remove();
+        showToast(data.message, 'success');
+      } else {
+        showToast(data.message || 'Error', 'error');
+      }
+    })
+    .catch(err => {
+      console.error('Delete failed:', err);
+      showToast('Delete failed', 'error');
+    });
+  }
+});
+
+// Rename form AJAX handler
+document.addEventListener('submit', (e) => {
+  if (e.target.action.includes('/rename/')) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const itemId = e.target.action.split('/rename/')[1];
+
+    fetch(e.target.action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        // Update the label in the play button
+        const label = document.querySelector(`#sbitem-${itemId} .sb-label`);
+        if (label) label.textContent = data.new_name;
+        // Hide the rename form
+        document.getElementById(`renameform-${itemId}`).classList.add('hidden');
+        showToast(data.message, 'success');
+      } else {
+        showToast(data.message || 'Error', 'error');
+      }
+    })
+    .catch(err => {
+      console.error('Rename failed:', err);
+      showToast('Rename failed', 'error');
+    });
+  }
+});
+
+// Share form AJAX handler
+document.addEventListener('submit', (e) => {
+  if (e.target.action.includes('/share') && !e.target.action.includes('/share/')) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const itemId = formData.get('item_id');
+
+    fetch(e.target.action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success' || data.status === 'info') {
+        // Hide the share form
+        document.getElementById(`shareform-${itemId}`).classList.add('hidden');
+        showToast(data.message, data.status);
+      } else {
+        showToast(data.message || 'Error', 'error');
+      }
+    })
+    .catch(err => {
+      console.error('Share failed:', err);
+      showToast('Share failed', 'error');
+    });
+  }
+});
 </script>
 {% endblock %}
