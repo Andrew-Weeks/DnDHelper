@@ -1,39 +1,97 @@
 {% extends 'base.html' %}
-{% block title %}Record Session — {{ campaign.name }} — DnD Helper{% endblock %}
+{% block title %}New Session — {{ campaign.name }} — DnD Helper{% endblock %}
 
 {% block content %}
 <div class="card" style="max-width:640px; margin:0 auto;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
-        <h1 style="margin:0;">Record Session</h1>
+        <h1 style="margin:0;">New Session</h1>
         <a href="{{ url_for('campaign.campaign_view', campaign_id=campaign.id) }}" class="btn btn-secondary">&larr; {{ campaign.name }}</a>
     </div>
 
-    <div class="record-controls">
-        <button id="recordBtn" class="btn" type="button">&#9679; Record</button>
-        <button id="stopBtn"   class="btn btn-secondary" type="button" disabled>&#9632; Stop</button>
-        <span id="recordTimer" class="record-timer hidden">0:00</span>
-        <span id="recordDot"   class="record-dot hidden"></span>
+    <!-- Tab switcher -->
+    <div style="display:flex; gap:0; margin-bottom:1.5rem; border-bottom:2px solid var(--border-color, #444);">
+        <button id="tabRecord" class="tab-btn tab-active" type="button" onclick="switchTab('record')">&#9679; Record Live</button>
+        <button id="tabUpload" class="tab-btn" type="button" onclick="switchTab('upload')">&#8679; Upload File</button>
     </div>
 
-    <audio id="previewAudio" controls class="audio-preview hidden" style="margin-top:0.75rem;"></audio>
-
-    <form id="saveSessionForm" method="POST"
-          action="{{ url_for('campaign.session_new', campaign_id=campaign.id) }}"
-          enctype="multipart/form-data" class="hidden" style="margin-top:1rem;">
-        <div class="form-group">
-            <label for="sessionTitle">Session Title</label>
-            <input type="text" id="sessionTitle" name="title"
-                   placeholder="e.g. Session 5 — Into the Dungeon" maxlength="200" required>
+    <!-- Record tab -->
+    <div id="panelRecord">
+        <div class="record-controls">
+            <button id="recordBtn" class="btn" type="button">&#9679; Record</button>
+            <button id="stopBtn"   class="btn btn-secondary" type="button" disabled>&#9632; Stop</button>
+            <span id="recordTimer" class="record-timer hidden">0:00</span>
+            <span id="recordDot"   class="record-dot hidden"></span>
         </div>
-        <button type="submit" class="btn" style="margin-top:0.5rem;">Save &amp; Upload Session</button>
-    </form>
+
+        <audio id="previewAudio" controls class="audio-preview hidden" style="margin-top:0.75rem;"></audio>
+
+        <form id="saveSessionForm" method="POST"
+              action="{{ url_for('campaign.session_new', campaign_id=campaign.id) }}"
+              enctype="multipart/form-data" class="hidden" style="margin-top:1rem;">
+            <input type="hidden" name="source" value="record">
+            <div class="form-group">
+                <label for="sessionTitle">Session Title</label>
+                <input type="text" id="sessionTitle" name="title"
+                       placeholder="e.g. Session 5 — Into the Dungeon" maxlength="200" required>
+            </div>
+            <button type="submit" class="btn" style="margin-top:0.5rem;">Save &amp; Upload Session</button>
+        </form>
+    </div>
+
+    <!-- Upload tab -->
+    <div id="panelUpload" class="hidden">
+        <form method="POST"
+              action="{{ url_for('campaign.session_new', campaign_id=campaign.id) }}"
+              enctype="multipart/form-data">
+            <input type="hidden" name="source" value="upload">
+            <div class="form-group">
+                <label for="uploadTitle">Session Title</label>
+                <input type="text" id="uploadTitle" name="title"
+                       placeholder="e.g. Session 5 — Into the Dungeon" maxlength="200" required>
+            </div>
+            <div class="form-group">
+                <label for="audioFile">Audio File</label>
+                <input type="file" id="audioFile" name="audio_file"
+                       accept=".mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm" required>
+                <p style="margin:0.35rem 0 0; font-size:0.82rem; opacity:0.6;">
+                    Supported formats: mp3, wav, m4a, ogg, flac, aac, mp4, webm
+                </p>
+            </div>
+            <button type="submit" class="btn" style="margin-top:0.5rem;">Upload Session</button>
+        </form>
+    </div>
 
     <p style="margin-top:1.5rem; opacity:0.6; font-size:0.85rem;">
-        Recording is stored on the server and processed locally using Whisper + pyannote. No audio is sent to external services.
+        Audio is stored on the server and transcribed locally using Whisper + pyannote. No audio is sent to external services.
     </p>
 </div>
 
+<style>
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    opacity: 0.6;
+    color: inherit;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+.tab-btn.tab-active {
+    opacity: 1;
+    border-bottom-color: var(--accent-color, #7b68ee);
+}
+</style>
+
 <script>
+function switchTab(tab) {
+    document.getElementById('panelRecord').classList.toggle('hidden', tab !== 'record');
+    document.getElementById('panelUpload').classList.toggle('hidden', tab !== 'upload');
+    document.getElementById('tabRecord').classList.toggle('tab-active', tab === 'record');
+    document.getElementById('tabUpload').classList.toggle('tab-active', tab === 'upload');
+}
+
 let mediaRecorder = null;
 let audioChunks   = [];
 let timerInterval = null;
@@ -105,6 +163,7 @@ saveForm.addEventListener('submit', async (e) => {
     const fd = new FormData();
     fd.append('audio_blob', saveForm._blob, 'session.webm');
     fd.append('title', title);
+    fd.append('source', 'record');
 
     const resp = await fetch(saveForm.action, { method: 'POST', body: fd });
     window.location.href = resp.url;

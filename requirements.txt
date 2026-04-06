@@ -3,6 +3,9 @@ flask-sqlalchemy>=3.1.0
 flask-login>=0.6.3
 requests>=2.31.0
 
+# Analysis (Claude API)
+anthropic>=0.40.0
+
 # Session recorder dependencies
 openai-whisper>=20231117
 pyannote.audio>=3.1

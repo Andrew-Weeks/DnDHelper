@@ -28,6 +28,17 @@
         <span style="opacity:0.8;">&#8987; Processing… (this page will refresh automatically)</span>
         {% endif %}
 
+        {% if sess.status == 'completed' %}
+        {% set any_analysis_running = sess.analyses | selectattr('status', 'eq', 'processing') | list %}
+        {% if any_analysis_running %}
+        <span style="opacity:0.8;">&#8987; Analysis running…</span>
+        {% else %}
+        <form method="POST" action="{{ url_for('campaign.session_analyze', campaign_id=campaign.id, session_id=sess.id) }}">
+            <button type="submit" class="btn">&#10024; Run Analysis</button>
+        </form>
+        {% endif %}
+        {% endif %}
+
         {% if sess.audio_filename %}
         <a href="{{ url_for('campaign.session_audio', campaign_id=campaign.id, session_id=sess.id) }}"
            class="btn btn-secondary" download>&#8615; Download Audio</a>
@@ -40,6 +51,49 @@
             <button type="submit" class="btn btn-secondary" style="color:#e07070;">&#128465; Delete Session</button>
         </form>
     </div>
+    {% endif %}
+
+    <!-- Analysis results panel (visible to all campaign members) -->
+    {% if sess.analyses %}
+    {% set completed_analyses = sess.analyses | selectattr('status', 'eq', 'completed') | list %}
+    {% set running_analyses   = sess.analyses | selectattr('status', 'eq', 'processing') | list %}
+    {% if completed_analyses or running_analyses %}
+    <div class="card" style="margin-top:1rem;" id="analysisPanel">
+        <h2 style="margin-bottom:0.75rem;">Session Analysis</h2>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+            {% for analysis in sess.analyses | sort(attribute='analysis_type') %}
+            {% if analysis.status == 'completed' %}
+            <a href="{{ url_for('campaign.analysis_view', campaign_id=campaign.id, session_id=sess.id, analysis_type=analysis.analysis_type) }}"
+               class="btn btn-secondary">
+                {% if analysis.analysis_type == 'summary' %}&#128213; Summary
+                {% elif analysis.analysis_type == 'ic_ooc' %}&#127917; In/Out of Character
+                {% elif analysis.analysis_type == 'combat_phases' %}&#9876; Combat Timeline
+                {% elif analysis.analysis_type == 'npcs' %}&#129489; NPC Tracker
+                {% endif %}
+            </a>
+            {% elif analysis.status == 'processing' %}
+            <span class="btn btn-secondary" style="opacity:0.5; cursor:default;">
+                &#8987;
+                {% if analysis.analysis_type == 'summary' %}Summary
+                {% elif analysis.analysis_type == 'ic_ooc' %}In/Out of Character
+                {% elif analysis.analysis_type == 'combat_phases' %}Combat Timeline
+                {% elif analysis.analysis_type == 'npcs' %}NPC Tracker
+                {% endif %}
+            </span>
+            {% elif analysis.status == 'failed' %}
+            <span class="btn btn-secondary" style="opacity:0.5; cursor:default; color:#e07070;" title="{{ analysis.error_message }}">
+                &#10007;
+                {% if analysis.analysis_type == 'summary' %}Summary
+                {% elif analysis.analysis_type == 'ic_ooc' %}In/Out of Character
+                {% elif analysis.analysis_type == 'combat_phases' %}Combat Timeline
+                {% elif analysis.analysis_type == 'npcs' %}NPC Tracker
+                {% endif %}
+            </span>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- Error message -->
@@ -116,16 +170,27 @@
 
 {% if sess.status == 'processing' %}
 <script>
-// Poll status every 10 seconds and reload when done
 setInterval(async () => {
     try {
         const resp = await fetch('{{ url_for("campaign.session_status", campaign_id=campaign.id, session_id=sess.id) }}');
         const data = await resp.json();
-        if (data.status !== 'processing') {
-            window.location.reload();
-        }
+        if (data.status !== 'processing') window.location.reload();
     } catch (_) {}
 }, 10000);
+</script>
+{% endif %}
+
+{% set any_analysis_running = sess.analyses | selectattr('status', 'eq', 'processing') | list %}
+{% if any_analysis_running %}
+<script>
+setInterval(async () => {
+    try {
+        const resp = await fetch('{{ url_for("campaign.analysis_status", campaign_id=campaign.id, session_id=sess.id) }}');
+        const data = await resp.json();
+        const stillRunning = Object.values(data).some(s => s === 'processing');
+        if (!stillRunning) window.location.reload();
+    } catch (_) {}
+}, 8000);
 </script>
 {% endif %}
 {% endblock %}

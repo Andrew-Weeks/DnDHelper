@@ -10,7 +10,9 @@ def role_required(role):
             if not current_user.is_authenticated:
                 abort(401)
             if current_user.role != role:
-                abort(403)
+                # developers have access to all role-gated routes
+                if not (current_user.role == 'developer'):
+                    abort(403)
             return f(*args, **kwargs)
         return decorated_function
     return decorator

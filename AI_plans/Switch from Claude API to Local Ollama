@@ -1,0 +1,55 @@
+Ready for review
+Select text to add comments on the plan
+Plan: Switch from Claude API to Local Ollama
+Context
+Replace the Anthropic Claude API integration with a fully local Ollama instance for session transcript analysis. This eliminates external data transmission — all D&D session data (player names, transcripts, campaign details) stays on the local machine. Also hardens .gitignore to prevent accidental commits of sensitive data.
+
+Ollama Setup Instructions (for the user)
+Install Ollama: Download from https://ollama.com/ and run the installer
+Pull a model: ollama pull llama3.1:8b (good balance of quality/speed for 12GB+ VRAM)
+Alternative: ollama pull mistral (lighter, faster)
+Verify it's running: ollama list and curl http://localhost:11434/v1/models
+Ollama runs as a background service automatically after install
+Code Changes
+1. app/services/analysis.py — Swap Anthropic client for OpenAI SDK
+Replace import anthropic with from openai import OpenAI
+Update _call_claude → _call_llm to use OpenAI client pointing at http://localhost:11434/v1
+Client init: OpenAI(base_url=base_url, api_key="ollama") (Ollama ignores the key but the SDK requires one)
+Change client.messages.create(...) to client.chat.completions.create(...) (OpenAI format)
+Update response parsing: response.choices[0].message.content instead of message.content[0].text
+Update default model from claude-haiku-4-5-20251001 to llama3.1:8b
+Reduce _CHUNK_WORD_LIMIT from 60,000 to ~6,000 (local models have smaller context windows; llama3.1:8b supports 128k but performs better with shorter inputs)
+2. config.py — Update configuration
+Remove ANTHROPIC_API_KEY config line
+Add OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434/v1')
+Change ANALYSIS_MODEL default from claude-haiku-4-5-20251001 to llama3.1:8b
+Keep SECRET_KEY, DM_SECRET, DEV_SECRET as-is (they're example defaults, not real secrets)
+3. requirements.txt — Swap dependencies
+Remove: anthropic>=0.40.0
+Add: openai>=1.0.0
+4. app/blueprints/campaign.py — Update API key check
+Remove the ANTHROPIC_API_KEY validation check in session_analyze()
+Replace with a connectivity check to Ollama (or just remove the gate entirely since Ollama is local)
+5. .gitignore — Harden for data privacy
+Add *.env* pattern (catches .env, .env.local, .env.production, etc.)
+Add instance/ (Flask instance folder, may contain local config)
+Add app/data/ if used for local storage
+Confirm *.db, uploads/ are already covered (they are)
+6. Create .env.example — Document required env vars
+Template file with placeholder values for all env vars (no real secrets)
+This gets committed to GitHub as documentation
+Files Modified
+app/services/analysis.py — Main changes (client swap)
+config.py — Config key changes
+requirements.txt — Dependency swap
+app/blueprints/campaign.py — Remove API key gate
+.gitignore — Add privacy patterns
+.env.example — New file (template)
+Verification
+Install Ollama and pull llama3.1:8b
+Run ollama serve (if not already running as service)
+Start the Flask app
+Navigate to a completed session and trigger analysis
+Verify all 4 analysis types complete (summary, ic_ooc, combat_phases, npcs)
+Check that no external network calls are made (can verify with Ollama logs)
+Add Comment
