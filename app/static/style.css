@@ -860,3 +860,282 @@ input[type="file"] {
 .status-reviewing  { background: #3a3000; color: #d4a017; }
 .status-planned    { background: #2a355f; color: #9fb8ff; }
 .status-done       { background: #1a4a2e; color: #7dd9a0; }
+
+/* =====================================================================
+   Initiative Tracker
+   ===================================================================== */
+
+.btn-danger {
+    background: #7a2d2d;
+    color: #e0d7c6;
+}
+
+.btn-danger:hover {
+    background: #9a3a3a;
+}
+
+.initiative-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.initiative-header h1 {
+    margin-bottom: 0;
+}
+
+.initiative-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.initiative-create {
+    margin-bottom: 2rem;
+}
+
+.initiative-create h2 {
+    margin-bottom: 0.75rem;
+}
+
+.initiative-new-form {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.initiative-new-form .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+
+.initiative-list h2 {
+    margin-bottom: 0.75rem;
+}
+
+.initiative-tracker-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.initiative-tracker-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    background: #0f3460;
+    border: 1px solid #2a3a5a;
+    border-radius: 4px;
+}
+
+.initiative-tracker-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #d4a017;
+    text-decoration: none;
+    font-weight: bold;
+    flex: 1;
+}
+
+.initiative-tracker-link:hover {
+    color: #e8bc30;
+}
+
+.initiative-combatant-count {
+    font-weight: normal;
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+.initiative-empty {
+    color: #888;
+    font-style: italic;
+    margin-top: 0.5rem;
+}
+
+/* Initiative order table */
+.initiative-order {
+    margin-bottom: 2rem;
+    overflow-x: auto;
+}
+
+.initiative-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.initiative-table thead th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    color: #c8b89a;
+    font-size: 0.85rem;
+    border-bottom: 2px solid #8b4513;
+    white-space: nowrap;
+}
+
+.initiative-table tbody tr {
+    border-bottom: 1px solid #2a2a4a;
+}
+
+.initiative-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.initiative-table td {
+    padding: 0.6rem 0.75rem;
+    vertical-align: middle;
+}
+
+.combatant-rolled {
+    background: rgba(15, 52, 96, 0.4);
+}
+
+.combatant-first {
+    background: rgba(212, 160, 23, 0.1);
+    border-left: 3px solid #d4a017;
+}
+
+.combatant-unrolled {
+    opacity: 0.7;
+}
+
+.initiative-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    background: #8b4513;
+    color: #e0d7c6;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.combatant-first .initiative-rank {
+    background: #d4a017;
+    color: #1a1a2e;
+}
+
+.initiative-rank-pending {
+    color: #555;
+}
+
+.modifier-badge {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.mod-positive { color: #7dd9a0; }
+.mod-negative { color: #d97d7d; }
+
+.roll-value {
+    font-family: monospace;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.roll-nat20 { color: #d4a017; }
+.roll-nat1  { color: #d97d7d; }
+
+.roll-pending {
+    color: #555;
+}
+
+.total-value {
+    font-size: 1.05rem;
+    color: #e0d7c6;
+}
+
+.combatant-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.custom-roll-form {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.custom-roll-input {
+    width: 3.5rem;
+    padding: 0.25rem 0.4rem;
+    background: #0f3460;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #e0d7c6;
+    font-family: monospace;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.custom-roll-input:focus {
+    outline: none;
+    border-color: #d4a017;
+}
+
+/* Add combatant form */
+.initiative-add {
+    border-top: 1px solid #2a2a4a;
+    padding-top: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.initiative-add h2 {
+    margin-bottom: 0.75rem;
+}
+
+.add-combatant-form {
+    max-width: 500px;
+}
+
+.add-combatant-fields {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.add-combatant-fields .form-group {
+    flex: 1;
+    min-width: 140px;
+    margin-bottom: 0;
+}
+
+.add-combatant-submit {
+    padding-bottom: 0.1rem;
+}
+
+@media (max-width: 600px) {
+    .initiative-header {
+        flex-direction: column;
+    }
+
+    .initiative-table {
+        font-size: 0.85rem;
+    }
+
+    .initiative-table td,
+    .initiative-table th {
+        padding: 0.4rem 0.4rem;
+    }
+
+    .combatant-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

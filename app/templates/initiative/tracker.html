@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}{{ tracker.name }} — Initiative Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="initiative-header">
+        <h1>{{ tracker.name }}</h1>
+        <div class="initiative-header-actions">
+            {% if tracker.combatants %}
+            <form method="POST" action="{{ url_for('initiative.roll_all', tracker_id=tracker.id) }}" style="display:inline;">
+                <button type="submit" class="btn">Roll All (unrolled)</button>
+            </form>
+            <form method="POST" action="{{ url_for('initiative.reset_rolls', tracker_id=tracker.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-secondary" onclick="return confirm('Reset all rolls?')">Reset Rolls</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('initiative.index') }}" class="btn btn-secondary">← All Trackers</a>
+        </div>
+    </div>
+
+    {% if combatants %}
+    <div class="initiative-order">
+        <table class="initiative-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-name">Name</th>
+                    <th class="col-mod">Modifier</th>
+                    <th class="col-roll">d20 Roll</th>
+                    <th class="col-total">Total</th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set rank = namespace(value=0) %}
+                {% for c in combatants %}
+                {% if c.roll is not none %}
+                    {% set rank.value = rank.value + 1 %}
+                    <tr class="combatant-row combatant-rolled {% if rank.value == 1 %}combatant-first{% endif %}">
+                        <td class="col-rank">
+                            <span class="initiative-rank">{{ rank.value }}</span>
+                        </td>
+                {% else %}
+                    <tr class="combatant-row combatant-unrolled">
+                        <td class="col-rank"><span class="initiative-rank-pending">—</span></td>
+                {% endif %}
+                        <td class="col-name">{{ c.name }}</td>
+                        <td class="col-mod">
+                            <span class="modifier-badge {% if c.modifier > 0 %}mod-positive{% elif c.modifier < 0 %}mod-negative{% endif %}">
+                                {% if c.modifier >= 0 %}+{% endif %}{{ c.modifier }}
+                            </span>
+                        </td>
+                        <td class="col-roll">
+                            {% if c.roll is not none %}
+                                <span class="roll-value {% if c.roll == 20 %}roll-nat20{% elif c.roll == 1 %}roll-nat1{% endif %}">{{ c.roll }}</span>
+                            {% else %}
+                                <span class="roll-pending">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="col-total">
+                            {% if c.total is not none %}
+                                <strong class="total-value">{{ c.total }}</strong>
+                            {% else %}
+                                <span class="roll-pending">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="col-actions">
+                            <div class="combatant-actions">
+                                <form method="POST" action="{{ url_for('initiative.roll_combatant', tracker_id=tracker.id, combatant_id=c.id) }}">
+                                    <button type="submit" class="btn btn-sm">🎲 Roll</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('initiative.custom_roll', tracker_id=tracker.id, combatant_id=c.id) }}" class="custom-roll-form">
+                                    <input type="number" name="roll" min="1" max="30" placeholder="d20" class="custom-roll-input" required>
+                                    <button type="submit" class="btn btn-secondary btn-sm">Enter</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('initiative.delete_combatant', tracker_id=tracker.id, combatant_id=c.id) }}">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Remove combatant?')">✕</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="initiative-empty">No combatants yet. Add some below!</p>
+    {% endif %}
+
+    <div class="initiative-add">
+        <h2>Add Combatant</h2>
+        <form method="POST" action="{{ url_for('initiative.add_combatant', tracker_id=tracker.id) }}" class="add-combatant-form">
+            <div class="add-combatant-fields">
+                <div class="form-group">
+                    <label for="cname">Name</label>
+                    <input type="text" id="cname" name="name" placeholder="e.g. Gandalf" maxlength="120" required>
+                </div>
+                <div class="form-group">
+                    <label for="modifier">Initiative Modifier</label>
+                    <input type="number" id="modifier" name="modifier" value="0" min="-10" max="20">
+                </div>
+                <div class="add-combatant-submit">
+                    <button type="submit" class="btn">Add</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

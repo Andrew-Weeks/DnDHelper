@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Initiative Tracker — DnD Helper{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Initiative Tracker</h1>
+
+    <div class="initiative-create">
+        <h2>New Combat</h2>
+        <form method="POST" action="{{ url_for('initiative.create') }}" class="initiative-new-form">
+            <div class="form-group">
+                <label for="name">Combat Name (optional)</label>
+                <input type="text" id="name" name="name" placeholder="e.g. Goblin Ambush" maxlength="120">
+            </div>
+            <button type="submit" class="btn">Create Tracker</button>
+        </form>
+    </div>
+
+    {% if trackers %}
+    <div class="initiative-list">
+        <h2>Your Trackers</h2>
+        <ul class="initiative-tracker-list">
+            {% for tracker in trackers %}
+            <li>
+                <a href="{{ url_for('initiative.tracker_view', tracker_id=tracker.id) }}" class="initiative-tracker-link">
+                    {{ tracker.name }}
+                    <span class="initiative-combatant-count">{{ tracker.combatants | length }} combatant{{ 's' if tracker.combatants | length != 1 }}</span>
+                </a>
+                <form method="POST" action="{{ url_for('initiative.delete_tracker', tracker_id=tracker.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete {{ tracker.name }}?')">Delete</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% else %}
+    <p class="initiative-empty">No trackers yet. Create one above to start tracking initiative!</p>
+    {% endif %}
+</div>
+{% endblock %}

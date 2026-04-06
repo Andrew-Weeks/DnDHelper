@@ -32,6 +32,7 @@ def create_app(config_class=Config):
     from app.blueprints.campaign import campaign_bp
     from app.blueprints.friends import friends_bp
     from app.blueprints.suggestions import suggestions_bp
+    from app.blueprints.initiative import initiative_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -39,6 +40,7 @@ def create_app(config_class=Config):
     app.register_blueprint(campaign_bp)
     app.register_blueprint(friends_bp)
     app.register_blueprint(suggestions_bp)
+    app.register_blueprint(initiative_bp)
 
     @app.errorhandler(403)
     def forbidden(e):

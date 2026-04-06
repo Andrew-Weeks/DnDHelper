@@ -29,6 +29,7 @@
                 <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
                 <a href="{{ url_for('soundboard.index') }}">Soundboard</a>
                 <a href="{{ url_for('campaign.campaign_list') }}">Campaigns</a>
+                <a href="{{ url_for('initiative.index') }}">Initiative</a>
                 {% if current_user.is_dm() %}
                     <a href="{{ url_for('main.dm_dashboard') }}">DM Panel</a>
                 {% endif %}

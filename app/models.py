@@ -245,6 +245,38 @@ class VoiceSample(db.Model):
     user = db.relationship('User', backref=db.backref('voice_samples', lazy=True))
 
 
+# ---------------------------------------------------------------------------
+# Initiative tracker
+# ---------------------------------------------------------------------------
+
+class InitiativeTracker(db.Model):
+    __tablename__ = 'initiative_tracker'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name       = db.Column(db.String(120), nullable=False, default='Combat')
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user       = db.relationship('User', backref=db.backref('initiative_trackers', lazy=True, cascade='all, delete-orphan'))
+    combatants = db.relationship('InitiativeCombatant', backref='tracker', lazy=True, cascade='all, delete-orphan')
+
+
+class InitiativeCombatant(db.Model):
+    __tablename__ = 'initiative_combatant'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    tracker_id = db.Column(db.Integer, db.ForeignKey('initiative_tracker.id'), nullable=False)
+    name       = db.Column(db.String(120), nullable=False)
+    modifier   = db.Column(db.Integer, nullable=False, default=0)
+    roll       = db.Column(db.Integer, nullable=True)  # d20 result; None = not yet rolled
+
+    @property
+    def total(self):
+        if self.roll is None:
+            return None
+        return self.roll + self.modifier
+
+
 class Suggestion(db.Model):
     __tablename__ = 'suggestion'
 
@@ -333,6 +365,12 @@ def ensure_schema_upgrades():
 
     if 'session_analysis' not in table_names:
         SessionAnalysis.__table__.create(bind=db.engine)
+
+    if 'initiative_tracker' not in table_names:
+        InitiativeTracker.__table__.create(bind=db.engine)
+
+    if 'initiative_combatant' not in table_names:
+        InitiativeCombatant.__table__.create(bind=db.engine)
 
 
 def ensure_default_characters_and_migrate_soundboards(soundboard_root):
