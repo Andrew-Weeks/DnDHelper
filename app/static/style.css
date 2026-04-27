@@ -1104,6 +1104,27 @@ input[type="file"] {
     margin-bottom: 0.65rem;
 }
 
+/* Spell image scanner */
+.spell-scan-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.spell-scan-btn {
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.spell-scan-status {
+    font-size: 0.85rem;
+}
+
+.spell-scan-loading { color: #7ab3e0; }
+.spell-scan-success { color: #66bb6a; }
+.spell-scan-error   { color: #ef5350; }
+
 @media (max-width: 720px) {
     .spellbook-body {
         grid-template-columns: 1fr;

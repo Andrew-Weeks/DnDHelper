@@ -114,6 +114,11 @@
       <!-- Create Custom Spell -->
       <details class="custom-spell-details">
         <summary class="custom-spell-summary">+ Create Custom Spell</summary>
+        <div class="spell-scan-section">
+          <label for="spellImageInput" class="btn btn-sm btn-secondary spell-scan-btn">Scan Spell Image</label>
+          <input type="file" id="spellImageInput" accept="image/*" capture="environment" style="display:none;">
+          <span id="spellScanStatus" class="spell-scan-status"></span>
+        </div>
         <form method="POST" action="{{ url_for('soundboard.create_custom_spell') }}" class="spell-custom-form">
           <input type="hidden" name="character_id" value="{{ active_character.id }}">
           <div class="form-group">
@@ -260,6 +265,79 @@
       item.style.display = (!q || item.dataset.search.includes(q)) ? '' : 'none';
     });
     updateCount();
+  });
+})();
+
+(function () {
+  const fileInput = document.getElementById('spellImageInput');
+  const statusEl  = document.getElementById('spellScanStatus');
+  if (!fileInput) return;
+
+  const FIELD_MAP = {
+    name:                 'customName',
+    level:                'customLevel',
+    school:               'customSchool',
+    casting_time:         'customCast',
+    range:                'customRange',
+    components:           'customComponents',
+    material_description: 'customMaterial',
+    duration:             'customDuration',
+    description:          'customDescription',
+  };
+
+  const scanUrl = '{{ url_for("soundboard.scan_spell_image") }}';
+
+  fileInput.addEventListener('change', async function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      statusEl.textContent = 'Image too large (max 5 MB).';
+      statusEl.className = 'spell-scan-status spell-scan-error';
+      return;
+    }
+
+    statusEl.textContent = 'Scanning spell…';
+    statusEl.className = 'spell-scan-status spell-scan-loading';
+
+    try {
+      const dataUri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+
+      const resp = await fetch(scanUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUri }),
+      });
+
+      const result = await resp.json();
+
+      if (!resp.ok) {
+        statusEl.textContent = result.error || 'Scan failed.';
+        statusEl.className = 'spell-scan-status spell-scan-error';
+        return;
+      }
+
+      const spell = result.spell;
+      for (const [key, elId] of Object.entries(FIELD_MAP)) {
+        const el = document.getElementById(elId);
+        if (!el || spell[key] == null) continue;
+        el.value = String(spell[key]);
+      }
+
+      statusEl.textContent = 'Spell detected! Review the fields below.';
+      statusEl.className = 'spell-scan-status spell-scan-success';
+
+    } catch (err) {
+      statusEl.textContent = 'Network error. Please try again.';
+      statusEl.className = 'spell-scan-status spell-scan-error';
+    }
+
+    this.value = '';
   });
 })();
 

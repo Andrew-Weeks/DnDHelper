@@ -433,6 +433,49 @@ def create_custom_spell():
     return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
 
+@soundboard_bp.route('/spells/scan-image', methods=['POST'])
+@login_required
+def scan_spell_image():
+    from app.services.spell_ocr import extract_spell_from_image
+
+    api_key = current_app.config.get('ANTHROPIC_API_KEY') or None
+    if not api_key:
+        return jsonify({'error': 'Spell scanning is not available (no API key configured).'}), 503
+
+    data = request.get_json(silent=True)
+    if not data or 'image' not in data:
+        return jsonify({'error': 'No image data provided.'}), 400
+
+    image_b64 = data['image']
+    media_type = data.get('media_type', 'image/jpeg')
+
+    # Strip data URI prefix (e.g. "data:image/png;base64,...")
+    if image_b64.startswith('data:'):
+        try:
+            header, image_b64 = image_b64.split(',', 1)
+            media_type = header.split(':')[1].split(';')[0]
+        except (IndexError, ValueError):
+            return jsonify({'error': 'Invalid image data URI format.'}), 400
+
+    if len(image_b64) > 7 * 1024 * 1024:
+        return jsonify({'error': 'Image too large. Please use an image under 5 MB.'}), 413
+
+    allowed_types = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+    if media_type not in allowed_types:
+        return jsonify({'error': f'Unsupported image type: {media_type}. Use JPEG, PNG, GIF, or WebP.'}), 400
+
+    model = current_app.config.get('ANALYSIS_MODEL', 'claude-haiku-4-5-20251001')
+
+    try:
+        spell_data = extract_spell_from_image(api_key, model, image_b64, media_type)
+        return jsonify({'spell': spell_data})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 422
+    except Exception as e:
+        current_app.logger.error(f'Spell scan failed: {e}')
+        return jsonify({'error': 'Failed to process the spell image. Please try again.'}), 500
+
+
 @soundboard_bp.route('/import-account', methods=['POST'])
 @login_required
 def import_legacy_account():
