@@ -7,6 +7,8 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
+from sqlalchemy import func
+
 from app.models import (
     CharacterSpell,
     db,
@@ -14,6 +16,7 @@ from app.models import (
     Friendship,
     ShareRequest,
     Spell,
+    SpellSourceExclusion,
     SoundboardItem,
     User,
     get_or_create_default_character,
@@ -113,12 +116,35 @@ def _spell_level_label(level):
 
 
 def _spell_catalog_query(user_id):
+    excluded_sources = [
+        e.source_name
+        for e in SpellSourceExclusion.query.filter_by(user_id=user_id).all()
+    ]
+    others_public_conds = [
+        Spell.is_public == True,
+        Spell.created_by_user_id != user_id,
+    ]
+    if excluded_sources:
+        others_public_conds.append(~Spell.source_name.in_(excluded_sources))
     return Spell.query.filter(
         db.or_(
             Spell.source_type == 'srd',
             Spell.created_by_user_id == user_id,
+            db.and_(*others_public_conds),
         )
     )
+
+
+def _get_community_sources(user_id):
+    excluded = {e.source_name for e in SpellSourceExclusion.query.filter_by(user_id=user_id).all()}
+    rows = (
+        db.session.query(Spell.source_name, func.count(Spell.id))
+        .filter(Spell.is_public == True, Spell.source_name.isnot(None))
+        .group_by(Spell.source_name)
+        .order_by(Spell.source_name.asc())
+        .all()
+    )
+    return [{'name': name, 'count': count, 'excluded': name in excluded} for name, count in rows]
 
 
 _SORT_MODES = [
@@ -203,6 +229,7 @@ def spellbook():
                            sort_label=sort_label,
                            next_sort=next_sort,
                            spell_count=Spell.query.filter_by(source_type='srd').count(),
+                           community_sources=_get_community_sources(current_user.id),
                            spell_level_label=_spell_level_label,
                            spell_level_options=_spell_level_options())
 
@@ -353,7 +380,7 @@ def add_spell_to_character():
         flash('That spell could not be found.', 'error')
         return redirect(url_for('soundboard.spellbook', character_id=character.id))
 
-    if spell.source_type != 'srd' and spell.created_by_user_id != current_user.id:
+    if spell.source_type != 'srd' and spell.created_by_user_id != current_user.id and not spell.is_public:
         abort(403)
 
     existing_link = CharacterSpell.query.filter_by(character_id=character.id, spell_id=spell.id).first()
@@ -400,6 +427,9 @@ def create_custom_spell():
     material_description = request.form.get('custom_material_description', '').strip() or None
     duration = request.form.get('custom_duration', '').strip() or None
 
+    is_public = bool(request.form.get('custom_is_public'))
+    community_source = request.form.get('community_source_name', '').strip() if is_public else ''
+
     if len(name) < 2 or len(name) > 120:
         flash('Custom spell name must be between 2 and 120 characters.', 'error')
         return redirect(url_for('soundboard.spellbook', character_id=character.id))
@@ -409,6 +439,11 @@ def create_custom_spell():
     if len(description) < 10:
         flash('Please provide a longer custom spell description.', 'error')
         return redirect(url_for('soundboard.spellbook', character_id=character.id))
+    if is_public and (len(community_source) < 2 or len(community_source) > 60):
+        flash('Community source name must be between 2 and 60 characters.', 'error')
+        return redirect(url_for('soundboard.spellbook', character_id=character.id))
+
+    source_name = community_source if is_public else 'User Custom'
 
     spell = Spell(
         name=name,
@@ -421,7 +456,8 @@ def create_custom_spell():
         duration=duration,
         description=description,
         source_type='custom',
-        source_name='User Custom',
+        source_name=source_name,
+        is_public=is_public,
         created_by_user_id=current_user.id,
     )
     db.session.add(spell)
@@ -431,6 +467,27 @@ def create_custom_spell():
     db.session.commit()
     flash(f'Custom spell "{spell.name}" created and added to {character.name}.', 'success')
     return redirect(url_for('soundboard.spellbook', character_id=character.id))
+
+
+@soundboard_bp.route('/spells/sources/toggle', methods=['POST'])
+@login_required
+def toggle_spell_source():
+    data = request.get_json(silent=True) or {}
+    source_name = (data.get('source_name') or '').strip()
+    if not source_name:
+        return jsonify({'error': 'source_name required'}), 400
+
+    existing = SpellSourceExclusion.query.filter_by(
+        user_id=current_user.id, source_name=source_name
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'source_name': source_name, 'excluded': False})
+    else:
+        db.session.add(SpellSourceExclusion(user_id=current_user.id, source_name=source_name))
+        db.session.commit()
+        return jsonify({'source_name': source_name, 'excluded': True})
 
 
 @soundboard_bp.route('/spells/scan-image', methods=['POST'])

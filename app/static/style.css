@@ -1052,6 +1052,84 @@ input[type="file"] {
     font-size: 0.7rem;
 }
 
+.catalog-community-badge {
+    color: #7db8d4;
+    font-style: normal;
+    font-size: 0.7rem;
+}
+
+/* Community source filter panel */
+.spell-sources-panel {
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #1e2a3e;
+    padding-bottom: 0.5rem;
+}
+
+.spell-sources-summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: #9ba8bf;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.spell-sources-summary::-webkit-details-marker { display: none; }
+
+.sources-hidden-badge {
+    background: #d4a017;
+    color: #1a1a2e;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+}
+
+.spell-sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.5rem 0 0.25rem;
+}
+
+.spell-source-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.spell-source-name {
+    flex: 1;
+    color: #e0d7c6;
+}
+
+.spell-source-count {
+    color: #888;
+    font-size: 0.75rem;
+}
+
+.spell-source-toggle {
+    font-size: 0.7rem;
+    padding: 0.2em 0.6em;
+}
+
+.spell-source-toggle.source-excluded {
+    opacity: 0.5;
+}
+
+/* Share publicly checkbox row */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
 .catalog-added-badge {
     font-size: 0.8rem;
     color: #7dd9a0;

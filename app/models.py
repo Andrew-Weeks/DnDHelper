@@ -63,6 +63,7 @@ class Spell(db.Model):
     source_type = db.Column(db.String(20), nullable=False, default='srd')
     source_name = db.Column(db.String(120), nullable=True)
     external_id = db.Column(db.String(120), nullable=True)
+    is_public = db.Column(db.Boolean, nullable=False, default=False)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, nullable=False,
@@ -82,6 +83,17 @@ class CharacterSpell(db.Model):
     character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=False)
     spell_id = db.Column(db.Integer, db.ForeignKey('spell.id'), nullable=False)
     added_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class SpellSourceExclusion(db.Model):
+    __tablename__ = 'spell_source_exclusion'
+    __table_args__ = (db.UniqueConstraint('user_id', 'source_name'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    source_name = db.Column(db.String(120), nullable=False)
+
+    user = db.relationship('User', backref=db.backref('spell_source_exclusions', lazy=True, cascade='all, delete-orphan'))
 
 
 class SoundboardItem(db.Model):
@@ -346,6 +358,13 @@ def ensure_schema_upgrades():
     if 'material_description' not in spell_columns:
         with db.engine.begin() as conn:
             conn.execute(text('ALTER TABLE spell ADD COLUMN material_description TEXT'))
+
+    if 'is_public' not in spell_columns:
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE spell ADD COLUMN is_public BOOLEAN NOT NULL DEFAULT 0'))
+
+    if 'spell_source_exclusion' not in table_names:
+        SpellSourceExclusion.__table__.create(bind=db.engine)
 
     with db.engine.begin() as conn:
         conn.execute(text('CREATE INDEX IF NOT EXISTS ix_spell_name ON spell(name)'))

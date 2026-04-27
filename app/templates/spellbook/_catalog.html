@@ -8,7 +8,13 @@
         {{ spell_level_label(spell.level) }}
         {% if spell.school %} · {{ spell.school }}{% endif %}
         {% if spell.class_list %} · <em>{{ spell.class_list }}</em>{% endif %}
-        {% if spell.source_type == 'custom' %} · <span class="catalog-custom-badge">Custom</span>{% endif %}
+        {% if spell.source_type == 'custom' %}
+          {% if spell.is_public %}
+           · <span class="catalog-community-badge">{{ spell.source_name }}</span>
+          {% else %}
+           · <span class="catalog-custom-badge">Custom</span>
+          {% endif %}
+        {% endif %}
       </span>
     </div>
     {% if already_added %}

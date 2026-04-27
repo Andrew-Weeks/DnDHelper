@@ -54,6 +54,29 @@
       <h2>Spell Catalog
         <span class="spellbook-result-count" id="catalogCount">{{ available_spells | length }} result{{ 's' if available_spells | length != 1 }}</span>
       </h2>
+      {% if community_sources %}
+      <details class="spell-sources-panel" id="spellSourcesPanel">
+        <summary class="spell-sources-summary">
+          Community Sources
+          {% set ns = namespace(hidden=0) %}{% for s in community_sources %}{% if s.excluded %}{% set ns.hidden = ns.hidden + 1 %}{% endif %}{% endfor %}
+          {% if ns.hidden > 0 %}<span class="sources-hidden-badge" id="sourcesHiddenBadge">{{ ns.hidden }} hidden</span>{% else %}<span class="sources-hidden-badge" id="sourcesHiddenBadge" style="display:none"></span>{% endif %}
+        </summary>
+        <div class="spell-sources-list">
+          {% for source in community_sources %}
+          <div class="spell-source-item">
+            <span class="spell-source-name">{{ source.name }}</span>
+            <span class="spell-source-count">{{ source.count }} spell{{ 's' if source.count != 1 }}</span>
+            <button type="button"
+                    class="btn btn-sm spell-source-toggle{% if source.excluded %} source-excluded{% endif %}"
+                    data-source="{{ source.name }}"
+                    data-excluded="{{ 'true' if source.excluded else 'false' }}">
+              {{ 'Hidden' if source.excluded else 'Shown' }}
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
       <div class="catalog-list" id="spellbookCatalogList">
         {% include 'spellbook/_catalog.html' %}
       </div>
@@ -162,6 +185,17 @@
             <label for="customDescription">Description <small>(required, min 10 chars)</small></label>
             <textarea id="customDescription" name="custom_description" rows="5" required></textarea>
           </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="custom_is_public" id="customIsPublic">
+              Share with all users
+            </label>
+          </div>
+          <div class="form-group" id="communitySourceGroup" style="display:none">
+            <label for="communitySourceName">Source / Collection Name <small>(e.g. "Flamecraft")</small></label>
+            <input id="communitySourceName" type="text" name="community_source_name" maxlength="60"
+                   placeholder="e.g. Flamecraft">
+          </div>
           <button type="submit" class="btn btn-sm">Create and Add</button>
         </form>
       </details>
@@ -171,7 +205,7 @@
 </div>
 
 <script>
-(function () {
+const spellCatalog = (function () {
   const searchInput  = document.getElementById('spellSearchInput');
   const catalogList  = document.getElementById('spellbookCatalogList');
   const catalogCount = document.getElementById('catalogCount');
@@ -194,7 +228,6 @@
         catalogList.style.opacity = '1';
         const n = data.count;
         catalogCount.textContent = n + ' result' + (n !== 1 ? 's' : '');
-        // Keep sort-toggle href in sync with current q
         updateSortHref(q);
       })
       .catch(() => { catalogList.style.opacity = '1'; });
@@ -210,7 +243,6 @@
     debounceTimer = setTimeout(() => fetchCatalog(this.value.trim()), 280);
   });
 
-  // When sort toggle is clicked, bake the current input value into the URL
   sortBtn.addEventListener('click', function (e) {
     e.preventDefault();
     const params = new URLSearchParams({
@@ -219,6 +251,52 @@
       sort: nextSort,
     });
     window.location.href = `${pageUrl}?${params}`;
+  });
+
+  return { fetchCatalog, getQuery: () => searchInput.value.trim() };
+})();
+
+(function () {
+  const toggleUrl = '{{ url_for("soundboard.toggle_spell_source") }}';
+  const badge = document.getElementById('sourcesHiddenBadge');
+
+  function updateHiddenBadge() {
+    if (!badge) return;
+    const hidden = document.querySelectorAll('.spell-source-toggle[data-excluded="true"]').length;
+    badge.textContent = hidden > 0 ? hidden + ' hidden' : '';
+    badge.style.display = hidden > 0 ? '' : 'none';
+  }
+
+  document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.spell-source-toggle');
+    if (!btn) return;
+    btn.disabled = true;
+    try {
+      const resp = await fetch(toggleUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_name: btn.dataset.source }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        btn.dataset.excluded = data.excluded ? 'true' : 'false';
+        btn.textContent = data.excluded ? 'Hidden' : 'Shown';
+        btn.classList.toggle('source-excluded', data.excluded);
+        updateHiddenBadge();
+        spellCatalog.fetchCatalog(spellCatalog.getQuery());
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+
+(function () {
+  const checkbox = document.getElementById('customIsPublic');
+  const group    = document.getElementById('communitySourceGroup');
+  if (!checkbox) return;
+  checkbox.addEventListener('change', function () {
+    group.style.display = this.checked ? '' : 'none';
   });
 })();
 
