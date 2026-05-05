@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template
+from flask_cors import CORS
 
 from config import Config
 from app.extensions import db, login_manager
@@ -19,6 +20,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.init_app(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -33,6 +35,7 @@ def create_app(config_class=Config):
     from app.blueprints.friends import friends_bp
     from app.blueprints.suggestions import suggestions_bp
     from app.blueprints.initiative import initiative_bp
+    from app.blueprints.api import api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -41,6 +44,7 @@ def create_app(config_class=Config):
     app.register_blueprint(friends_bp)
     app.register_blueprint(suggestions_bp)
     app.register_blueprint(initiative_bp)
+    app.register_blueprint(api_bp)
 
     @app.errorhandler(403)
     def forbidden(e):

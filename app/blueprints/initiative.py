@@ -1,36 +1,16 @@
 import random
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask_login import login_required
 
 from app.models import db, InitiativeTracker, InitiativeCombatant
+from app.blueprints.initiative_helpers import (
+    get_tracker_or_403 as _get_tracker_or_403,
+    get_combatant_or_404 as _get_combatant_or_404,
+    sorted_combatants as _sorted_combatants,
+)
 
 initiative_bp = Blueprint('initiative', __name__, url_prefix='/initiative')
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _get_tracker_or_403(tracker_id):
-    tracker = db.session.get(InitiativeTracker, tracker_id)
-    if not tracker or tracker.user_id != current_user.id:
-        abort(403)
-    return tracker
-
-
-def _get_combatant_or_404(tracker, combatant_id):
-    combatant = db.session.get(InitiativeCombatant, combatant_id)
-    if not combatant or combatant.tracker_id != tracker.id:
-        abort(404)
-    return combatant
-
-
-def _sorted_combatants(combatants):
-    """Rolled combatants first (highest total), unrolled at the bottom."""
-    def sort_key(c):
-        return (1, c.total) if c.total is not None else (0, 0)
-    return sorted(combatants, key=sort_key, reverse=True)
 
 
 # ---------------------------------------------------------------------------
