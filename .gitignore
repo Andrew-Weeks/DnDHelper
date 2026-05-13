@@ -218,3 +218,6 @@ mobile/.expo/
 mobile/dist/
 mobile/android/
 mobile/ios/
+.env.example
+.git_branch_diff.txt
+.git_branch_files.txt
